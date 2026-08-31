@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Záhira · Painel de Estudos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --bg: #F4F3FB;
+  --surface: #FFFFFF;
+  --surface-tint: #EFECFB;
+  --sidebar: #24204A;
+  --sidebar-hi: #322C63;
+  --lilac: #9C8CE8;
+  --lilac-deep: #7C63DD;
+  --blue: #5679E6;
+  --blue-deep: #3F5FD1;
+  --text: #211D3D;
+  --text-muted: #6E698C;
+  --text-soft: #9791B3;
+  --border: #E5E1F7;
+  --success: #3FAE7C;
+  --success-bg: #E4F6EC;
+  --warn: #D89A2F;
+  --warn-bg: #FBF0DC;
+  --danger: #DD5C82;
+  --danger-bg: #FBE6ED;
+  --r-lg: 22px;
+  --r-md: 16px;
+  --r-sm: 10px;
+  --font-d: 'Fraunces', serif;
+  --font-b: 'Plus Jakarta Sans', sans-serif;
+  --shadow: 0 2px 4px rgba(38,30,90,.04), 0 8px 24px rgba(38,30,90,.06);
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  font-family: var(--font-b);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  overflow:hidden;
+}
+button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+input, textarea, select{font-family:inherit; color:inherit;}
+a{color:var(--blue-deep);}
+::selection{background: #D9CFFB;}
+
+/* ---------- Layout shell ---------- */
+#app{ display:flex; height:100vh; width:100%; }
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  width: 240px;
+  min-width:240px;
+  background: linear-gradient(190deg, var(--sidebar) 0%, #2A2554 100%);
+  color: #EDEAFB;
+  display:flex;
+  flex-direction:column;
+  padding: 26px 18px;
+}
+.nav-group-label{
+  font-size:11px; color:#8B84BC; padding: 14px 10px 8px;
+  font-weight:600;
+}
+.nav-btn{
+  display:flex; align-items:center; gap:11px;
+  width:100%; padding: 11px 12px; border-radius: 12px;
+  font-size:14.5px; font-weight:500; color:#CFC9F0;
+  transition: background .15s ease, color .15s ease;
+  text-align:left;
+}
+.nav-btn svg{ width:18px; height:18px; flex-shrink:0; opacity:.85; }
+.nav-btn:hover{ background: rgba(255,255,255,.06); color:#fff; }
+.nav-btn.active{ background: var(--sidebar-hi); color:#fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.nav-btn.active svg{ opacity:1; }
+
+.sidebar-spacer{ flex:1; }
+
+.sidebar-account{ padding:10px 10px 2px; border-top:1px solid rgba(255,255,255,.08); margin-top:8px; }
+.sync-row{ display:flex; align-items:center; gap:6px; font-size:11px; color:#B9B2E4; margin-bottom:4px; }
+.sync-dot{ width:6px; height:6px; border-radius:50%; background: var(--success); flex-shrink:0; }
+.account-email{ font-size:11px; color:#8B84BC; margin-bottom:8px; word-break:break-all; }
+.account-links{ display:flex; justify-content:space-between; }
+.account-links a{ font-size:11px; color:#9E97C9; text-decoration:none; }
+.account-links a:hover{ color:#fff; text-decoration:underline; }
+
+.overlay{
+  position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(160deg, #24204A 0%, #3D3480 60%, #5679E6 130%);
+  padding:24px;
+}
+.overlay-card{
+  background:#fff; border-radius: var(--r-lg); padding:30px 32px; max-width:460px; width:100%;
+  box-shadow: 0 20px 60px rgba(20,15,60,.35);
+  max-height: 88vh; overflow-y:auto;
+}
+.overlay-title{ font-family:var(--font-d); font-size:23px; font-weight:600; margin-bottom:10px; }
+.overlay-text{ font-size:13px; color:var(--text-muted); line-height:1.6; margin-bottom:16px; }
+.overlay-tabs{ display:flex; gap:8px; margin-bottom:14px; }
+.overlay-error{ font-size:12.5px; color:var(--danger); margin-top:10px; min-height:14px; }
+#setupPasteInput{ font-family: 'Space Mono', monospace; font-size:12px; }
+#setupManualWrap input{ margin-top:2px; }
+
+/* ---------- Main ---------- */
+.main{ flex:1; overflow-y:auto; height:100vh; }
+.topbar{
+  position:sticky; top:0; z-index:5;
+  background: rgba(244,243,251,.85); backdrop-filter: blur(8px);
+  padding: 22px 40px 14px;
+  display:flex; align-items:baseline; justify-content:space-between;
+  border-bottom: 1px solid transparent;
+}
+.topbar h1{ font-family:var(--font-d); font-weight:600; font-size:26px; }
+.topbar .date{ font-size:13px; color:var(--text-muted); }
+.view{ padding: 6px 40px 60px; }
+.view[hidden]{ display:none; }
+
+/* ---------- Cards / generic ---------- */
+.card{
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.card-pad{ padding: 22px 24px; }
+.section-title{
+  font-family: var(--font-d); font-size:17px; font-weight:600; margin-bottom:4px;
+}
+.section-sub{ font-size:12.5px; color:var(--text-muted); margin-bottom:16px; }
+.pill-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 8px 14px; border-radius: 999px;
+  background: var(--surface-tint); color: var(--lilac-deep);
+  font-size:13px; font-weight:600;
+  transition: background .15s, transform .1s;
+}
+.pill-btn:hover{ background:#E3DDFA; }
+.pill-btn:active{ transform: scale(.97); }
+.pill-btn.primary{ background: linear-gradient(135deg, var(--lilac-deep), var(--blue)); color:#fff; }
+.pill-btn.primary:hover{ filter:brightness(1.05); }
+.pill-btn.ghost{ background:transparent; color:var(--text-muted); }
+.pill-btn.danger{ background: var(--danger-bg); color: var(--danger); }
+.icon-btn{
+  width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  color: var(--text-muted);
+}
+.icon-btn:hover{ background: var(--surface-tint); color:var(--text); }
+.icon-btn svg{ width:16px; height:16px; }
+
+input[type=text], input[type=number], input[type=date], input[type=url], textarea, select{
+  border:1px solid var(--border); border-radius: 10px; padding: 9px 12px;
+  font-size:13.5px; background:#fff; width:100%; outline:none;
+}
+input:focus, textarea:focus, select:focus{ border-color: var(--lilac); box-shadow: 0 0 0 3px rgba(156,140,232,.15); }
+label.field-label{ font-size:11.5px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:5px; }
+
+/* ---------- HOME ---------- */
+.home-grid{ display:grid; grid-template-columns: 1fr 320px; gap:22px; align-items:start; }
+.greeting-card{
+  background: linear-gradient(120deg, #2E2861 0%, #4A3E9E 55%, #5679E6 130%);
+  color:#fff; border-radius: var(--r-lg); padding: 30px 32px; position:relative; overflow:hidden;
+}
+.greeting-card::after{
+  content:""; position:absolute; right:-60px; top:-60px; width:220px; height:220px; border-radius:50%;
+  background: radial-gradient(circle, rgba(255,255,255,.14), transparent 70%);
+}
+.greeting-time{ font-size:12.5px; color:#C6BEF2; font-weight:600; margin-bottom:6px; }
+.greeting-title{ font-family: var(--font-d); font-size: 30px; font-weight:600; margin-bottom:8px; }
+.greeting-quote{ font-size:14px; color:#DAD3F7; max-width:520px; line-height:1.5; font-style:italic; }
+
+.modules-row{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-top:20px; }
+.module-card{
+  background: var(--surface); border-radius: var(--r-md); border:1px solid var(--border);
+  overflow:hidden; cursor:pointer; box-shadow: var(--shadow); transition: transform .15s ease;
+  display:flex; flex-direction:column;
+}
+.module-card:hover{ transform: translateY(-3px); }
+.module-cover{
+  height:78px; width:100%; background-size:cover; background-position:center;
+  background: linear-gradient(135deg, var(--lilac), var(--blue));
+  position:relative;
+}
+.module-cover .cover-edit{
+  position:absolute; top:6px; right:6px; background:rgba(0,0,0,.35); color:#fff;
+  width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center;
+}
+.module-cover .cover-edit:hover{ background:rgba(0,0,0,.55); }
+.module-body{ padding: 12px 14px 14px; }
+.module-name{ font-weight:700; font-size:14px; margin-bottom:2px; }
+.module-code{ font-size:11px; color:var(--text-muted); margin-bottom:10px; }
+.progress-track{ height:6px; border-radius:6px; background: var(--surface-tint); overflow:hidden; }
+.progress-fill{ height:100%; border-radius:6px; background: linear-gradient(90deg, var(--lilac-deep), var(--blue)); }
+.module-dates{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-soft); margin-top:6px; }
+.module-dates span[contenteditable], .module-dates input{ cursor:text; }
+
+.bottom-row{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px; }
+
+.links-list{ display:flex; flex-direction:column; gap:4px; }
+.link-row{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding: 8px 10px; border-radius:10px;
+}
+.link-row:hover{ background: var(--surface-tint); }
+.link-row a{ font-size:13px; font-weight:600; text-decoration:none; color:var(--text); display:flex; align-items:center; gap:8px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;}
+.link-row a svg{ width:14px; height:14px; color:var(--blue-deep); flex-shrink:0;}
+.add-link-form{ display:flex; gap:6px; margin-top:10px; }
+.add-link-form input{ font-size:12.5px; padding:7px 10px; }
+
+.player-card{ padding:20px; background: linear-gradient(150deg, #2B2657, #4B2E63); color:#fff; border-radius:var(--r-md); border:1px solid var(--border);}
+.player-card .section-title, .player-card .section-sub{ color:#EDE7FA; }
+.player-card .section-sub{ color:#C9BFEC; }
+.spotify-embed-wrap{ border-radius:12px; overflow:hidden; margin-top:6px; }
+.player-input-row{ display:flex; gap:6px; margin-bottom:10px;}
+.player-empty{
+  border:1px dashed rgba(255,255,255,.25); border-radius:12px; padding:22px 14px; text-align:center; font-size:12.5px; color:#C9BFEC;
+}
+
+.calendar-card{ min-height:290px; }
+.calendar-embed{ border-radius:12px; overflow:hidden; margin-top:10px; }
+.agenda-list{ display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.agenda-item{ display:flex; align-items:flex-start; gap:9px; padding:9px 10px; border-radius:10px; background:var(--surface-tint); }
+.agenda-item.done{ opacity:.5; }
+.agenda-item.done .agenda-text{ text-decoration:line-through; }
+.agenda-check{ width:16px; height:16px; border-radius:5px; border:1.5px solid var(--lilac); flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center;}
+.agenda-check.checked{ background:var(--lilac-deep); border-color:var(--lilac-deep); }
+.agenda-check svg{ width:10px; height:10px; color:#fff;}
+.agenda-text{ font-size:13px; flex:1; }
+.agenda-time{ font-size:10.5px; color:var(--text-soft); font-weight:600; white-space:nowrap;}
+.agenda-del{ opacity:0; transition:opacity .1s; }
+.agenda-item:hover .agenda-del{ opacity:1; }
+
+.todo-card{ margin-top:16px; }
+.todo-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+.todo-tab{ font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; color:var(--text-muted); background:var(--surface-tint); }
+.todo-tab.active{ background: var(--lilac-deep); color:#fff; }
+.todo-list{ display:flex; flex-direction:column; gap:7px; max-height:230px; overflow-y:auto; }
+.todo-item{ display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:10px; border:1px solid var(--border); }
+.todo-item.done .todo-text{ text-decoration:line-through; color:var(--text-soft); }
+.todo-tag{ font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:6px; text-transform:uppercase; letter-spacing:.3px; }
+.todo-tag.individual{ background:#E4EBFC; color:var(--blue-deep); }
+.todo-tag.group{ background:#F6E4F4; color:#A8479E; }
+.new-todo-row{ display:flex; gap:6px; margin-top:10px; }
+.new-todo-row select{ width:auto; flex-shrink:0; }
+
+/* ---------- PROGRESSO ---------- */
+.progress-view-grid{ display:flex; flex-direction:column; gap:30px; }
+.attendance-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:18px; }
+.att-card{ padding:20px; display:flex; gap:16px; align-items:center; }
+.donut-wrap{ position:relative; width:92px; height:92px; flex-shrink:0; }
+.donut-wrap svg{ transform: rotate(-90deg); }
+.donut-label{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.donut-pct{ font-weight:700; font-size:16px; }
+.donut-sub{ font-size:9px; color:var(--text-muted); }
+.att-info{ flex:1; }
+.att-name{ font-weight:700; font-size:14.5px; margin-bottom:8px; }
+.att-stats{ display:flex; gap:14px; margin-bottom:10px; }
+.att-stat b{ display:block; font-size:15px; }
+.att-stat span{ font-size:10.5px; color:var(--text-muted); }
+.att-controls{ display:flex; gap:6px; align-items:center; }
+.att-controls input{ width:64px; padding:6px 8px; font-size:12.5px; }
+.stepper-btn{ width:26px; height:26px; border-radius:8px; background:var(--surface-tint); font-weight:700; }
+.stepper-btn:hover{ background:#E3DDFA; }
+
+.cert-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.cert-table th{ text-align:left; font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.3px; padding:8px 10px; border-bottom:1px solid var(--border);}
+.cert-table td{ padding:10px; border-bottom:1px solid var(--border); vertical-align:middle;}
+.cert-table tr:last-child td{ border-bottom:none; }
+.status-badge{ font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; }
+.status-badge.Done{ background:var(--success-bg); color:var(--success); }
+.status-badge.Andamento{ background:var(--warn-bg); color:var(--warn); }
+.cert-form{ display:grid; grid-template-columns: 2fr 1fr 1fr 2fr auto; gap:8px; margin-bottom:16px; }
+.cert-form select{ height:38px; }
+
+/* ---------- MÓDULOS ---------- */
+.notebook-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap:18px; }
+.notebook-card{
+  background:var(--surface); border-radius:var(--r-md); border:1px solid var(--border); overflow:hidden; cursor:pointer;
+  box-shadow: var(--shadow); transition: transform .15s;
+}
+.notebook-card:hover{ transform: translateY(-3px); }
+.notebook-cover{ height:96px; background: linear-gradient(135deg, var(--lilac), var(--blue)); background-size:cover; background-position:center;}
+.notebook-body{ padding:12px 14px; }
+.notebook-name{ font-weight:700; font-size:14px; }
+.notebook-count{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+.crumbs{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted); margin-bottom:16px; }
+.crumbs b{ color:var(--text); cursor:pointer; }
+.crumbs .sep{ color:var(--text-soft); }
+
+.note-card{ position:relative; }
+.note-cover{ height:80px; background: var(--surface-tint); background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--text-soft);}
+.note-title{ font-weight:700; font-size:13.5px; }
+.note-date{ font-size:10.5px; color:var(--text-soft); margin-top:2px;}
+.note-del{ position:absolute; top:6px; right:6px; background:rgba(255,255,255,.85); border-radius:7px; opacity:0; transition:opacity .1s; }
+.note-card:hover .note-del{ opacity:1; }
+.new-note-card{ display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; border:1.5px dashed var(--border); background:transparent; box-shadow:none; min-height:150px; color:var(--text-muted); font-size:12.5px; font-weight:600; }
+.new-note-card:hover{ border-color:var(--lilac); color:var(--lilac-deep); background: var(--surface-tint); }
+
+/* ---------- EDITOR ---------- */
+.editor-shell{ max-width:900px; margin:0 auto; }
+.editor-toolbar{
+  position:sticky; top:70px; z-index:4;
+  display:flex; align-items:center; gap:4px; flex-wrap:wrap;
+  background: var(--surface); border:1px solid var(--border); border-radius: 14px;
+  padding:8px; margin-bottom:18px; box-shadow: var(--shadow);
+}
+.tb-btn{ min-width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--text); }
+.tb-btn:hover{ background: var(--surface-tint); }
+.tb-btn.small{ font-size:11px; }
+.tb-sep{ width:1px; height:20px; background:var(--border); margin:0 4px; }
+.tb-select{ height:32px; border-radius:8px; border:1px solid var(--border); font-size:12px; padding:0 6px; background:#fff; }
+.swatch-row{ display:flex; gap:4px; align-items:center; padding:0 4px; }
+.swatch{ width:18px; height:18px; border-radius:5px; border:1px solid rgba(0,0,0,.08); }
+
+.note-page{ background: var(--surface); border-radius: var(--r-lg); border:1px solid var(--border); box-shadow: var(--shadow); padding: 46px 56px 80px; min-height:60vh; }
+.note-page-title{ font-family: var(--font-d); font-size:34px; font-weight:600; outline:none; margin-bottom:6px; }
+.note-page-title:empty:before{ content: attr(data-ph); color: var(--text-soft); }
+.note-page-author{ font-size:13px; color: var(--text-muted); outline:none; margin-bottom:26px; }
+.note-page-author:empty:before{ content: attr(data-ph); color: var(--text-soft); }
+.note-page-body{ outline:none; font-size:15.5px; line-height:1.75; }
+.note-page-body:empty:before{ content:'Comece a escrever...'; color:var(--text-soft); }
+.note-page-body h2{ font-family:var(--font-d); font-size:23px; margin:22px 0 8px; font-weight:600; }
+.note-page-body h3{ font-family:var(--font-d); font-size:18px; margin:18px 0 6px; font-weight:600; }
+.note-page-body blockquote{ border-left:3px solid var(--lilac); padding: 4px 0 4px 16px; color:var(--text-muted); font-style:italic; margin:14px 0; }
+.note-page-body ul, .note-page-body ol{ padding-left:24px; margin:8px 0; }
+.note-page-body p{ margin:6px 0; }
+.note-page-body img{ max-width:100%; border-radius:10px; margin:10px 0; }
+.note-page-body a{ text-decoration:underline; }
+.note-page-body .callout{
+  display:flex; gap:10px; background: var(--surface-tint); border-radius:12px; padding:14px 16px; margin:14px 0;
+}
+.note-page-body .callout .callout-icon{ font-size:18px; }
+.note-editor-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.save-indicator{ font-size:11.5px; color:var(--text-soft); }
+
+/* scrollbars */
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-thumb{ background: #D9D3F2; border-radius:8px; }
+::-webkit-scrollbar-track{ background: transparent; }
+
+@media (max-width: 980px){
+  .home-grid{ grid-template-columns: 1fr; }
+  .modules-row{ grid-template-columns: 1fr 1fr; }
+  .bottom-row{ grid-template-columns: 1fr; }
+  .cert-form{ grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== SETUP (Firebase config) ===================== -->
+<div class="overlay" id="setupOverlay" hidden>
+  <div class="overlay-card">
+    <div class="overlay-title">Conectar ao Firebase</div>
+    <p class="overlay-text">
+      Pra seus dados ficarem salvos na nuvem, na sua própria conta — sem depender do Claude —
+      este painel usa o <b>Firebase</b> (gratuito). Crie um projeto em
+      <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a>,
+      ative <b>Authentication → E-mail/senha</b> e <b>Firestore Database</b>, depois cole aqui a configuração
+      do seu app da Web (Configurações do projeto → Seus apps → ícone <b>&lt;/&gt;</b>).
+    </p>
+    <div class="overlay-tabs">
+      <button class="pill-btn" id="setupPasteBtn">Colar configuração</button>
+      <button class="pill-btn" id="setupManualBtn">Preencher campos</button>
+    </div>
+    <div id="setupPasteWrap">
+      <label class="field-label">Cole aqui o bloco "firebaseConfig" copiado do console</label>
+      <textarea id="setupPasteInput" rows="7" placeholder="const firebaseConfig = { apiKey: '...', authDomain: '...', ... };"></textarea>
+    </div>
+    <div id="setupManualWrap" hidden>
+      <label class="field-label">apiKey</label><input type="text" id="cfgApiKey">
+      <label class="field-label" style="margin-top:8px;">authDomain</label><input type="text" id="cfgAuthDomain">
+      <label class="field-label" style="margin-top:8px;">projectId</label><input type="text" id="cfgProjectId">
+      <label class="field-label" style="margin-top:8px;">storageBucket</label><input type="text" id="cfgStorageBucket">
+      <label class="field-label" style="margin-top:8px;">messagingSenderId</label><input type="text" id="cfgSenderId">
+      <label class="field-label" style="margin-top:8px;">appId</label><input type="text" id="cfgAppId">
+    </div>
+    <div class="overlay-error" id="setupError"></div>
+    <button class="pill-btn primary" id="setupSaveBtn" style="margin-top:14px; width:100%;">Salvar e conectar</button>
+  </div>
+</div>
+
+<!-- ===================== LOGIN ===================== -->
+<div class="overlay" id="authOverlay" hidden>
+  <div class="overlay-card">
+    <div class="overlay-title">Entrar</div>
+    <p class="overlay-text">Crie sua conta ou entre — seus dados ficam vinculados só a ela, em qualquer dispositivo.</p>
+    <label class="field-label">E-mail</label>
+    <input type="text" id="authEmail" placeholder="seu@email.com">
+    <label class="field-label" style="margin-top:10px;">Senha</label>
+    <input type="password" id="authPassword" placeholder="mínimo 6 caracteres">
+    <div class="overlay-error" id="authError"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="pill-btn primary" id="authLoginBtn" style="flex:1;">Entrar</button>
+      <button class="pill-btn" id="authSignupBtn" style="flex:1;">Criar conta</button>
+    </div>
+    <button class="pill-btn ghost" id="authResetBtn" style="width:100%; margin-top:8px;">Esqueci minha senha</button>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <aside class="sidebar">
+    <div class="nav-group-label" style="margin-top:6px;">Navegação</div>
+    <button class="nav-btn active" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9.5a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+      Página Inicial
+    </button>
+    <button class="nav-btn" data-tab="progress">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10"/><path d="M12 19V5"/><path d="M20 19v-7"/><path d="M2 19h20"/></svg>
+      Progresso
+    </button>
+    <button class="nav-btn" data-tab="modules">
+
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+      Módulos
+    </button>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-account">
+      <div class="sync-row"><span class="sync-dot"></span><span id="cloudStatus">Sincronizado</span></div>
+      <div class="account-email" id="accountEmail"></div>
+      <div class="account-links">
+        <a href="#" id="logoutLink">Sair</a>
+        <a href="#" id="changeFirebaseLink">Trocar projeto</a>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1 id="viewTitle">Página Inicial</h1>
+      <div class="date" id="topDate"></div>
+    </div>
+
+    <!-- ===================== HOME ===================== -->
+    <section class="view" id="view-home">
+      <div class="home-grid">
+        <div class="home-left">
+
+          <div class="greeting-card">
+            <div class="greeting-time" id="greetingTime">BOM DIA</div>
+            <div class="greeting-title" id="greetingTitle">Bom dia, Aluna</div>
+            <div class="greeting-quote" id="greetingQuote">…ou você faz, ou assiste o outro fazer</div>
+          </div>
+
+          <div class="modules-row" id="modulesRow"></div>
+
+          <div class="bottom-row">
+            <div class="card card-pad">
+              <div class="section-title">Links rápidos</div>
+              <div class="section-sub">Seus atalhos mais usados</div>
+              <div class="links-list" id="linksList"></div>
+              <div class="add-link-form">
+                <input type="text" id="linkNameInput" placeholder="Nome">
+                <input type="url" id="linkUrlInput" placeholder="https://...">
+                <button class="icon-btn" id="addLinkBtn" title="Adicionar link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="player-card" id="playerCard">
+              <div class="section-title">Agora tocando</div>
+              <div class="section-sub">Cole um link de faixa, álbum ou playlist do Spotify</div>
+              <div class="player-input-row">
+                <input type="url" id="spotifyInput" placeholder="Link do Spotify">
+                <button class="pill-btn primary" id="spotifySetBtn">Definir</button>
+              </div>
+              <div id="playerArea"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="home-right">
+          <div class="card card-pad calendar-card">
+            <div class="section-title">Seus planos de hoje</div>
+            <div class="section-sub" id="calendarSub">Conecte seu Google Agenda para ver o widget do seu dia</div>
+            <div class="player-input-row">
+              <input type="text" id="calendarEmbedInput" placeholder="E-mail do Google ou link de incorporação da agenda">
+              <button class="pill-btn primary" id="calendarSetBtn">Conectar</button>
+            </div>
+            <div class="section-sub" style="margin:-4px 0 10px; font-size:11px;">Agenda pública: cole seu e-mail (ex: nome@gmail.com). Agenda privada/restrita: em Configurações da agenda → Integrar agenda, copie o link do campo "Incorporar código" e cole aqui.</div>
+            <div id="calendarArea"></div>
+            <div class="agenda-list" id="agendaList"></div>
+            <div class="new-todo-row">
+              <input type="text" id="agendaTimeInput" placeholder="Hora" style="max-width:70px;">
+              <input type="text" id="agendaTextInput" placeholder="Novo compromisso...">
+              <button class="icon-btn" id="agendaAddBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card card-pad todo-card">
+            <div class="section-title">Atividades atuais e futuras</div>
+            <div class="section-sub">Seus trabalhos individuais e em grupo</div>
+            <div class="todo-tabs">
+              <button class="todo-tab active" data-filter="all">Todas</button>
+              <button class="todo-tab" data-filter="individual">Individuais</button>
+              <button class="todo-tab" data-filter="group">Em grupo</button>
+            </div>
+            <div class="todo-list" id="todoList"></div>
+            <div class="new-todo-row">
+              <select id="todoTypeSelect">
+                <option value="individual">Individual</option>
+                <option value="group">Em grupo</option>
+              </select>
+              <input type="text" id="todoTextInput" placeholder="Nova atividade...">
+              <button class="icon-btn" id="todoAddBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PROGRESSO ===================== -->
+    <section class="view" id="view-progress" hidden>
+      <div class="progress-view-grid">
+        <div>
+          <div class="section-title">Calculadora de faltas</div>
+          <div class="section-sub">Defina o total de faltas permitidas em cada módulo e vá registrando conforme faltar</div>
+          <div class="attendance-grid" id="attendanceGrid"></div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="section-title">Cursos, artigos e certificados</div>
+          <div class="section-sub">Sua coleção de certificados e horas complementares</div>
+          <div class="cert-form">
+            <input type="text" id="certName" placeholder="Nome do curso/artigo">
+            <input type="number" id="certHours" placeholder="Horas">
+            <input type="text" id="certInst" placeholder="Instituição">
+            <input type="url" id="certLink" placeholder="Link do certificado">
+            <button class="pill-btn primary" id="certAddBtn">Adicionar</button>
+          </div>
+          <table class="cert-table">
+            <thead><tr><th>Nome</th><th>Horas</th><th>Instituição</th><th>Certificado</th><th>Status</th><th></th></tr></thead>
+            <tbody id="certTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== MÓDULOS ===================== -->
+    <section class="view" id="view-modules" hidden>
+      <div id="modulesGridView">
+        <div class="section-title">Seus módulos</div>
+        <div class="section-sub">Escolha um módulo para ver suas anotações</div>
+        <div class="notebook-grid" id="notebookGrid"></div>
+      </div>
+
+      <div id="modulesFolderView" hidden>
+        <div class="crumbs">
+          <b id="crumbModules">Módulos</b><span class="sep">/</span><span id="crumbCurrent"></span>
+        </div>
+        <div class="notebook-grid" id="notesGrid"></div>
+      </div>
+
+      <div id="modulesEditorView" hidden>
+        <div class="crumbs">
+          <b id="crumbModules2">Módulos</b><span class="sep">/</span><b id="crumbFolder2"></b><span class="sep">/</span><span id="crumbNote2"></span>
+        </div>
+        <div class="editor-shell">
+          <div class="editor-toolbar" id="editorToolbar"></div>
+          <div class="note-editor-top">
+            <span class="save-indicator" id="saveIndicator">Salvo</span>
+            <div style="display:flex; gap:8px;">
+              <button class="pill-btn" id="bgColorBtn">Fundo da página</button>
+              <button class="pill-btn primary" id="exportPdfBtn">Baixar em PDF</button>
+            </div>
+          </div>
+          <div class="note-page" id="notePageWrap">
+            <div class="note-page-title" id="notePageTitle" contenteditable="true" data-ph="Título da anotação"></div>
+            <div class="note-page-author" id="notePageAuthor" contenteditable="true" data-ph="Autor"></div>
+            <div class="note-page-body" id="notePageBody" contenteditable="true"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   VITALIS — armazenamento
+   ============================================================ */
+const USER_NAME = "Záhira";
+
+const DEFAULTS = {
+  quoteIndex: 0,
+  modules: [
+    { id:"efch", name:"EFCH II", code:"Estruturas e Funções do Corpo Humano II", cover:"", start:"", end:"" },
+    { id:"ais",  name:"AIS II",  code:"Atenção Integral à Saúde II", cover:"", start:"", end:"" },
+    { id:"deht", name:"DEHT II", code:"Desenvolvimento do Estudante e Habilidades para o Trabalho II", cover:"", start:"", end:"" }
+  ],
+  todos: [],
+  quickLinks: [
+    { id:"ql1", name:"Drive EFCH, AIS, DEHT", url:"https://drive.google.com/drive/folders/1bTuQawjve6YRpp8KPzysQgbsLCofox3C?usp=drive_link" },
+    { id:"ql2", name:"Manual do Semestre", url:"https://drive.google.com/file/d/1ml1ENq5iHnCX6VV5BOrflCSzdGGAfmfG/view?usp=sharing" },
+    { id:"ql3", name:"Minha Biblioteca", url:"https://sso.minhabiblioteca.com.br/Login.aspx?key=LUCIANOFEIJAO" },
+    { id:"ql4", name:"Portal Acadêmico", url:"https://flucianofeijao.com.br/flf/portal-academico/" }
+  ],
+  playerData: { spotifyUrl:"" },
+  calendarData: { embedUrl:"", agenda:[] },
+  attendanceData: {
+    efch: { max:8, used:0 }, ais: { max:8, used:0 }, deht: { max:8, used:0 }
+  },
+  certificates: [
+    { id:"c1", name:"Curso de Sutura (LAMFAC)", hours:4, inst:"FLF", link:"https://drive.google.com/file/d/1wtTtLZit0sznFkNPMWxuKjkM4IA-klXC/view?usp=drive_link", status:"Done" },
+    { id:"c2", name:"Territórios Saudáveis: construindo caminhos para a promoção da Saúde Única na comunidade", hours:2, inst:"FLF", link:"https://drive.google.com/file/d/1Uaaq1a0wbpfs6voVXjlilSFniRvjQtE6/view?usp=drive_link", status:"Done" },
+    { id:"c3", name:"XII SEMIC", hours:"", inst:"FLF", link:"https://drive.google.com/file/d/15z0VEcAaq0wTYbFR-2qnoPo3r3UcKrD3/view?usp=drive_link", status:"Done" },
+    { id:"c4", name:"Adaptações histofisiológicas do sistema cardiovascular ao exercício físico", hours:"", inst:"", link:"https://drive.google.com/file/d/1ydoK_zqsGdtH_W4aMKwoijQErmRDi9a0/view?usp=drive_link", status:"Done" }
+  ],
+  notesIndex: { efch: [], ais: [], deht: [] }
+};
+
+const QUOTES = [
+  "…ou você faz, ou assiste o outro fazer",
+  "…foque no que você quer e faça até dar certo.",
+  "…tudo o que você sabe, você aprendeu tentado",
+  "…não esquece de imaginar o melhor cenário também",
+  "…foque no degrau a frente, não na escada inteira",
+  "…pare de querer agradar todo mundo, você nem gosta de todo mundo",
+  "…vai viver ou tá com medo?",
+  "…é difícil porque é novo, não porque você não é capaz",
+  "…você não precisa estar pronta, só precisa começar.",
+  "…a vida que você quer exige versões suas que você ainda não conhece.",
+  "…se der medo, vai com medo mesmo.",
+  "…não confunda estar começando com estar fracassando.",
+  "…um dia você vai agradecer por não ter desistido hoje.",
+  "…pare de esperar confiança, ela vem depois que você tenta.",
+  "…faça por você, mesmo quando ninguém estiver aplaudindo.",
+  "…o que parece impossível hoje pode ser rotina amanhã.",
+  "…você não precisa ver o caminho inteiro, só o próximo passo.",
+  "…talvez dê certo. E se der?",
+  "…não tenha medo de ser iniciante em algo que pode mudar sua vida.",
+  "…você já sobreviveu a dias que achou que não conseguiria.",
+  "…comece pequeno, mas comece.",
+  "…não diminua seus sonhos para caber no medo dos outros.",
+  "…se você continuar adiando, quem vai viver essa vida por você?",
+  "…não é atraso, é processo. Cada coisa tem seu tempo.",
+  "…faça hoje o que a sua versão do futuro vai agradecer.",
+  "…você não precisa provar nada, só precisa não desistir de si mesma.",
+  "…a sua vida muda quando você para de negociar com aquilo que realmente quer.",
+  "…não espere o momento perfeito, transforme o momento que você tem.",
+  "…às vezes, o \"e se der errado?\" precisa virar \"e se der certo?\".",
+  "…você pode ter medo e ainda assim escolher a coragem.",
+  "…não olhe para quem está na frente, olhe para o quanto você já caminhou.",
+  "…ninguém fica boa antes de ficar ruim primeiro.",
+  "…o desconforto de tentar passa; o arrependimento de não tentar fica.",
+  "…não desista só porque ainda não aconteceu.",
+  "…você não precisa de permissão para querer mais da sua própria vida.",
+  "…faça acontecer em silêncio e deixe os resultados fazerem barulho.",
+  "…talvez você esteja a uma tentativa de distância daquilo que tanto deseja."
+];
+
+const state = {};
+
+/* ============================================================
+   FIREBASE — armazenamento na nuvem (independente do Claude)
+   ============================================================ */
+const CONFIG_KEY = "vitalisFirebaseConfig";
+let fbApp = null, db = null, auth = null, currentUser = null;
+
+function getStoredConfig(){
+  try{ const raw = localStorage.getItem(CONFIG_KEY); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+function storeConfig(cfg){
+  try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }catch(e){ console.warn("não foi possível salvar a config localmente", e); }
+}
+
+function initFirebase(cfg){
+  fbApp = firebase.initializeApp(cfg);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      currentUser = user;
+      document.getElementById("setupOverlay").hidden = true;
+      document.getElementById("authOverlay").hidden = true;
+      document.getElementById("app").hidden = false;
+      const label = document.getElementById("accountEmail");
+      if(label) label.textContent = user.email || "conta";
+      init();
+    } else {
+      currentUser = null;
+      document.getElementById("app").hidden = true;
+      document.getElementById("setupOverlay").hidden = true;
+      document.getElementById("authOverlay").hidden = false;
+    }
+  });
+}
+
+async function getData(key, fallback){
+  try{
+    if(!db || !currentUser) return fallback;
+    const doc = await db.collection("users").doc(currentUser.uid).collection("data").doc(key).get();
+    if(doc.exists && doc.data().value !== undefined){ return JSON.parse(doc.data().value); }
+    return fallback;
+  }catch(e){ console.error("getData (Firestore) error", e); return fallback; }
+}
+async function setData(key, value){
+  try{
+    if(!db || !currentUser) return;
+    await db.collection("users").doc(currentUser.uid).collection("data").doc(key)
+      .set({ value: JSON.stringify(value), updatedAt: Date.now() });
+    const s = document.getElementById("cloudStatus");
+    if(s){ s.textContent = "Sincronizado"; }
+  }catch(e){
+    console.error("setData (Firestore) error", e);
+    const s = document.getElementById("cloudStatus");
+    if(s){ s.textContent = "Erro ao salvar"; }
+  }
+}
+
+function bootstrap(){
+  const cfg = getStoredConfig();
+  if(cfg){
+    document.getElementById("setupOverlay").hidden = true;
+    initFirebase(cfg);
+  } else {
+    document.getElementById("app").hidden = true;
+    document.getElementById("authOverlay").hidden = true;
+    document.getElementById("setupOverlay").hidden = false;
+  }
+}
+
+function parsePastedConfig(text){
+  try{
+    const match = text.match(/\{[\s\S]*\}/);
+    const body = match ? match[0] : text;
+    // eslint-disable-next-line no-new-func
+    const obj = new Function("return (" + body + ")")();
+    return obj;
+  }catch(e){ return null; }
+}
+
+document.getElementById("setupPasteBtn")?.addEventListener("click", ()=>{
+  document.getElementById("setupPasteWrap").hidden = false;
+  document.getElementById("setupManualWrap").hidden = true;
+});
+document.getElementById("setupManualBtn")?.addEventListener("click", ()=>{
+  document.getElementById("setupManualWrap").hidden = false;
+  document.getElementById("setupPasteWrap").hidden = true;
+});
+
+document.getElementById("setupSaveBtn")?.addEventListener("click", ()=>{
+  const errorEl = document.getElementById("setupError");
+  errorEl.textContent = "";
+  let cfg = null;
+  if(!document.getElementById("setupPasteWrap").hidden){
+    const raw = document.getElementById("setupPasteInput").value.trim();
+    cfg = parsePastedConfig(raw);
+  } else {
+    cfg = {
+      apiKey: document.getElementById("cfgApiKey").value.trim(),
+      authDomain: document.getElementById("cfgAuthDomain").value.trim(),
+      projectId: document.getElementById("cfgProjectId").value.trim(),
+      storageBucket: document.getElementById("cfgStorageBucket").value.trim(),
+      messagingSenderId: document.getElementById("cfgSenderId").value.trim(),
+      appId: document.getElementById("cfgAppId").value.trim()
+    };
+  }
+  if(!cfg || !cfg.apiKey || !cfg.projectId || !cfg.appId){
+    errorEl.textContent = "Não consegui reconhecer a configuração. Confira os dados e tente novamente.";
+    return;
+  }
+  storeConfig(cfg);
+  document.getElementById("setupOverlay").hidden = true;
+  initFirebase(cfg);
+});
+
+function setupAuthOverlay(){
+  const errorEl = document.getElementById("authError");
+  document.getElementById("authLoginBtn").addEventListener("click", async ()=>{
+    errorEl.textContent = "";
+    const email = document.getElementById("authEmail").value.trim();
+    const pass = document.getElementById("authPassword").value;
+    try{ await auth.signInWithEmailAndPassword(email, pass); }
+    catch(e){ errorEl.textContent = traduzErroFirebase(e); }
+  });
+  document.getElementById("authSignupBtn").addEventListener("click", async ()=>{
+    errorEl.textContent = "";
+    const email = document.getElementById("authEmail").value.trim();
+    const pass = document.getElementById("authPassword").value;
+    try{ await auth.createUserWithEmailAndPassword(email, pass); }
+    catch(e){ errorEl.textContent = traduzErroFirebase(e); }
+  });
+  document.getElementById("authResetBtn").addEventListener("click", async ()=>{
+    errorEl.textContent = "";
+    const email = document.getElementById("authEmail").value.trim();
+    if(!email){ errorEl.textContent = "Digite seu e-mail acima primeiro."; return; }
+    try{ await auth.sendPasswordResetEmail(email); errorEl.style.color = "var(--success)"; errorEl.textContent = "Enviamos um link de redefinição para o seu e-mail."; }
+    catch(e){ errorEl.textContent = traduzErroFirebase(e); }
+  });
+}
+function traduzErroFirebase(e){
+  const map = {
+    "auth/invalid-email": "E-mail inválido.",
+    "auth/user-not-found": "Não existe conta com esse e-mail.",
+    "auth/wrong-password": "Senha incorreta.",
+    "auth/email-already-in-use": "Já existe uma conta com esse e-mail — tente entrar.",
+    "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
+    "auth/invalid-credential": "E-mail ou senha incorretos."
+  };
+  return map[e.code] || ("Algo deu errado: " + e.message);
+}
+setupAuthOverlay();
+
+document.getElementById("logoutLink")?.addEventListener("click", (e)=>{
+  e.preventDefault();
+  if(auth) auth.signOut();
+});
+document.getElementById("changeFirebaseLink")?.addEventListener("click", (e)=>{
+  e.preventDefault();
+  if(confirm("Isso desconecta o app deste projeto Firebase (seus dados continuam salvos na nuvem). Deseja configurar outro projeto?")){
+    localStorage.removeItem(CONFIG_KEY);
+    location.reload();
+  }
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function init(){
+  state.quoteIndex = await getData("quoteIndex", DEFAULTS.quoteIndex);
+  state.modules = await getData("modules", DEFAULTS.modules);
+  state.todos = await getData("todos", DEFAULTS.todos);
+  state.quickLinks = await getData("quickLinks", DEFAULTS.quickLinks);
+  state.playerData = await getData("playerData", DEFAULTS.playerData);
+  state.calendarData = await getData("calendarData", DEFAULTS.calendarData);
+  state.attendanceData = await getData("attendanceData", DEFAULTS.attendanceData);
+  state.certificates = await getData("certificates", DEFAULTS.certificates);
+  state.notesIndex = await getData("notesIndex", DEFAULTS.notesIndex);
+
+  // rotate quote index for this session
+  state.quoteIndex = (state.quoteIndex + 1) % QUOTES.length;
+  setData("quoteIndex", state.quoteIndex);
+
+  renderAll();
+  setupNav();
+  setupHome();
+  setupProgress();
+  setupModules();
+  tickClock();
+  setInterval(tickClock, 60000);
+}
+
+function renderAll(){
+  renderGreeting();
+  renderModulesRow();
+  renderLinks();
+  renderPlayer();
+  renderCalendar();
+  renderTodos();
+  renderAttendance();
+  renderCertificates();
+  renderNotebookGrid();
+}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+function setupNav(){
+  document.querySelectorAll(".nav-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      const tab = btn.dataset.tab;
+      document.getElementById("view-home").hidden = tab !== "home";
+      document.getElementById("view-progress").hidden = tab !== "progress";
+      document.getElementById("view-modules").hidden = tab !== "modules";
+      const titles = { home:"Página Inicial", progress:"Progresso", modules:"Módulos" };
+      document.getElementById("viewTitle").textContent = titles[tab];
+      if(tab === "modules"){ showModulesGrid(); }
+    });
+  });
+}
+
+function tickClock(){
+  const now = new Date();
+  document.getElementById("topDate").textContent = now.toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
+  renderGreeting();
+}
+
+function renderGreeting(){
+  const h = new Date().getHours();
+  let period = "boa noite";
+  if(h >= 5 && h < 12) period = "bom dia";
+  else if(h >= 12 && h < 18) period = "boa tarde";
+  document.getElementById("greetingTime").textContent = period.toUpperCase();
+  const cap = period.charAt(0).toUpperCase() + period.slice(1);
+  document.getElementById("greetingTitle").textContent = `${cap}, ${USER_NAME}`;
+  document.getElementById("greetingQuote").textContent = QUOTES[state.quoteIndex];
+}
+
+/* ============================================================
+   HOME — modules row
+   ============================================================ */
+function renderModulesRow(){
+  const row = document.getElementById("modulesRow");
+  row.innerHTML = "";
+  state.modules.forEach(m=>{
+    const pct = computeModuleProgress(m);
+    const card = document.createElement("div");
+    card.className = "module-card";
+    card.innerHTML = `
+      <div class="module-cover" style="${m.cover ? `background-image:url('${escapeAttr(m.cover)}')` : ''}">
+        <div class="cover-edit" title="Alterar capa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </div>
+      </div>
+      <div class="module-body">
+        <div class="module-name">${escapeHtml(m.name)}</div>
+        <div class="module-code">${escapeHtml(m.code)}</div>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="module-dates">
+          <span data-field="start">${m.start ? fmtDate(m.start) : 'início'}</span>
+          <span>${pct}%</span>
+          <span data-field="end">${m.end ? fmtDate(m.end) : 'fim'}</span>
+        </div>
+      </div>
+    `;
+    card.querySelector(".module-body").addEventListener("click", (e)=>{
+      if(e.target.closest("[data-field]")) return;
+      document.querySelector('.nav-btn[data-tab="modules"]').click();
+      openFolder(m.id);
+    });
+    card.querySelector(".cover-edit").addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const url = prompt("URL da imagem de capa:", m.cover || "");
+      if(url !== null){ m.cover = url.trim(); await setData("modules", state.modules); renderModulesRow(); renderNotebookGrid(); }
+    });
+    card.querySelector('[data-field="start"]').addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const v = prompt("Data de início (AAAA-MM-DD):", m.start || "");
+      if(v !== null){ m.start = v.trim(); await setData("modules", state.modules); renderModulesRow(); }
+    });
+    card.querySelector('[data-field="end"]').addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      const v = prompt("Data de fim (AAAA-MM-DD):", m.end || "");
+      if(v !== null){ m.end = v.trim(); await setData("modules", state.modules); renderModulesRow(); }
+    });
+    row.appendChild(card);
+  });
+}
+
+function computeModuleProgress(m){
+  if(!m.start || !m.end) return 0;
+  const s = new Date(m.start).getTime(), e = new Date(m.end).getTime(), now = Date.now();
+  if(isNaN(s) || isNaN(e) || e <= s) return 0;
+  let pct = Math.round(((now - s) / (e - s)) * 100);
+  return Math.max(0, Math.min(100, pct));
+}
+function fmtDate(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return iso;
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+}
+
+/* ============================================================
+   HOME — quick links
+   ============================================================ */
+function renderLinks(){
+  const wrap = document.getElementById("linksList");
+  wrap.innerHTML = "";
+  state.quickLinks.forEach(l=>{
+    const row = document.createElement("div");
+    row.className = "link-row";
+    row.innerHTML = `
+      <a href="${escapeAttr(l.url)}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.5 4.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.4-1.4"/></svg>
+        <span>${escapeHtml(l.name)}</span>
+      </a>
+      <button class="icon-btn del-link" title="Remover">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    `;
+    row.querySelector(".del-link").addEventListener("click", async ()=>{
+      state.quickLinks = state.quickLinks.filter(x=>x.id !== l.id);
+      await setData("quickLinks", state.quickLinks);
+      renderLinks();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function setupHome(){
+  document.getElementById("addLinkBtn").addEventListener("click", async ()=>{
+    const nameEl = document.getElementById("linkNameInput");
+    const urlEl = document.getElementById("linkUrlInput");
+    if(!nameEl.value.trim() || !urlEl.value.trim()) return;
+    state.quickLinks.push({ id:"ql"+Date.now(), name:nameEl.value.trim(), url:urlEl.value.trim() });
+    await setData("quickLinks", state.quickLinks);
+    nameEl.value = ""; urlEl.value = "";
+    renderLinks();
+  });
+
+  document.getElementById("spotifySetBtn").addEventListener("click", async ()=>{
+    const v = document.getElementById("spotifyInput").value.trim();
+    if(!v) return;
+    state.playerData.spotifyUrl = v;
+    await setData("playerData", state.playerData);
+    document.getElementById("spotifyInput").value = "";
+    renderPlayer();
+  });
+
+  document.getElementById("calendarSetBtn").addEventListener("click", async ()=>{
+    const v = document.getElementById("calendarEmbedInput").value.trim();
+    if(!v) return;
+    state.calendarData.embedUrl = v;
+    await setData("calendarData", state.calendarData);
+    document.getElementById("calendarEmbedInput").value = "";
+    renderCalendar();
+  });
+
+  document.getElementById("agendaAddBtn").addEventListener("click", async ()=>{
+    const timeEl = document.getElementById("agendaTimeInput");
+    const textEl = document.getElementById("agendaTextInput");
+    if(!textEl.value.trim()) return;
+    state.calendarData.agenda.push({ id:"ag"+Date.now(), time:timeEl.value.trim(), text:textEl.value.trim(), done:false });
+    await setData("calendarData", state.calendarData);
+    timeEl.value = ""; textEl.value = "";
+    renderCalendar();
+  });
+
+  document.getElementById("todoAddBtn").addEventListener("click", async ()=>{
+    const textEl = document.getElementById("todoTextInput");
+    const typeEl = document.getElementById("todoTypeSelect");
+    if(!textEl.value.trim()) return;
+    state.todos.push({ id:"td"+Date.now(), text:textEl.value.trim(), type:typeEl.value, done:false });
+    await setData("todos", state.todos);
+    textEl.value = "";
+    renderTodos();
+  });
+
+  document.querySelectorAll(".todo-tab").forEach(tab=>{
+    tab.addEventListener("click", ()=>{
+      document.querySelectorAll(".todo-tab").forEach(t=>t.classList.remove("active"));
+      tab.classList.add("active");
+      renderTodos(tab.dataset.filter);
+    });
+  });
+}
+
+function renderPlayer(){
+  const area = document.getElementById("playerArea");
+  const url = state.playerData.spotifyUrl;
+  if(!url){
+    area.innerHTML = `<div class="player-empty">Nenhuma faixa definida ainda. Cole um link do Spotify acima — funciona com faixas, álbuns ou playlists públicas.</div>`;
+    return;
+  }
+  const embed = spotifyToEmbed(url);
+  if(!embed){
+    area.innerHTML = `<div class="player-empty">Não reconheci esse link do Spotify. Copie o link de "Compartilhar" de uma faixa, álbum ou playlist.</div>`;
+    return;
+  }
+  area.innerHTML = `<div class="spotify-embed-wrap"><iframe src="${embed}" width="100%" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe></div>`;
+}
+function spotifyToEmbed(url){
+  const m = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/);
+  if(!m) return null;
+  return `https://open.spotify.com/embed/${m[1]}/${m[2]}`;
+}
+
+function buildCalendarEmbedUrl(raw){
+  raw = raw.trim();
+  // if the person pasted the whole <iframe> embed code, extract the src attribute
+  const iframeMatch = raw.match(/src=["']([^"']+)["']/i);
+  if(/^<iframe/i.test(raw) && iframeMatch){ raw = iframeMatch[1].replace(/&amp;/g, "&"); }
+
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Fortaleza";
+  // if the person pasted a full embed URL, keep it but force agenda mode for "today" view
+  if(/^https?:\/\//i.test(raw)){
+    try{
+      const u = new URL(raw);
+      u.searchParams.set("mode", "AGENDA");
+      u.searchParams.set("showTitle", "0");
+      u.searchParams.set("showNav", "0");
+      u.searchParams.set("showTabs", "0");
+      u.searchParams.set("showCalendars", "0");
+      u.searchParams.set("showPrint", "0");
+      u.searchParams.set("showTz", "0");
+      return u.toString();
+    }catch(e){ return raw; }
+  }
+  // otherwise treat it as a calendar ID / e-mail (calendar must be shared/public)
+  const params = new URLSearchParams({
+    src: raw, ctz: tz, mode: "AGENDA",
+    showTitle: "0", showNav: "0", showTabs: "0", showCalendars: "0", showPrint: "0", showTz: "0"
+  });
+  return `https://calendar.google.com/calendar/embed?${params.toString()}`;
+}
+
+function renderCalendar(){
+  const area = document.getElementById("calendarArea");
+  const sub = document.getElementById("calendarSub");
+  if(state.calendarData.embedUrl){
+    const src = buildCalendarEmbedUrl(state.calendarData.embedUrl);
+    area.innerHTML = `<div class="calendar-embed"><iframe src="${escapeAttr(src)}" style="border:0" width="100%" height="260" frameborder="0"></iframe></div>`;
+    sub.innerHTML = `Mostrando os compromissos do seu Google Agenda &nbsp;·&nbsp; <a href="#" id="calendarDisconnect" style="font-size:11.5px;">desconectar</a>`;
+    const dc = document.getElementById("calendarDisconnect");
+    if(dc){ dc.addEventListener("click", async (e)=>{ e.preventDefault(); state.calendarData.embedUrl = ""; await setData("calendarData", state.calendarData); renderCalendar(); }); }
+  } else {
+    area.innerHTML = "";
+    sub.textContent = "Conecte seu Google Agenda para ver o widget do seu dia";
+  }
+  renderAgenda();
+}
+function renderAgenda(){
+  const wrap = document.getElementById("agendaList");
+  wrap.innerHTML = "";
+  if(state.calendarData.agenda.length === 0){
+    wrap.innerHTML = `<div class="section-sub" style="margin:6px 0 0;">Nenhum compromisso manual adicionado.</div>`;
+  }
+  state.calendarData.agenda.forEach(item=>{
+    const row = document.createElement("div");
+    row.className = "agenda-item" + (item.done ? " done" : "");
+    row.innerHTML = `
+      <div class="agenda-check ${item.done ? 'checked' : ''}">
+        ${item.done ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}
+      </div>
+      <div class="agenda-text">${escapeHtml(item.text)}</div>
+      ${item.time ? `<div class="agenda-time">${escapeHtml(item.time)}</div>` : ''}
+      <button class="icon-btn agenda-del" title="Remover" style="width:22px;height:22px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    `;
+    row.querySelector(".agenda-check").addEventListener("click", async ()=>{
+      item.done = !item.done;
+      await setData("calendarData", state.calendarData);
+      renderAgenda();
+    });
+    row.querySelector(".agenda-del").addEventListener("click", async ()=>{
+      state.calendarData.agenda = state.calendarData.agenda.filter(x=>x.id !== item.id);
+      await setData("calendarData", state.calendarData);
+      renderAgenda();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function renderTodos(filter){
+  filter = filter || "all";
+  const wrap = document.getElementById("todoList");
+  wrap.innerHTML = "";
+  const list = state.todos.filter(t => filter === "all" || t.type === filter);
+  if(list.length === 0){
+    wrap.innerHTML = `<div class="section-sub" style="margin:0;">Nada por aqui ainda.</div>`;
+  }
+  list.forEach(t=>{
+    const row = document.createElement("div");
+    row.className = "todo-item" + (t.done ? " done" : "");
+    row.innerHTML = `
+      <div class="agenda-check ${t.done ? 'checked' : ''}">
+        ${t.done ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}
+      </div>
+      <div class="todo-text" style="flex:1; font-size:13px;">${escapeHtml(t.text)}</div>
+      <span class="todo-tag ${t.type}">${t.type === 'individual' ? 'Individual' : 'Grupo'}</span>
+      <button class="icon-btn" style="width:22px;height:22px;" title="Remover">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    `;
+    row.querySelector(".agenda-check").addEventListener("click", async ()=>{
+      t.done = !t.done;
+      await setData("todos", state.todos);
+      renderTodos(filter);
+    });
+    row.querySelector(".icon-btn").addEventListener("click", async ()=>{
+      state.todos = state.todos.filter(x=>x.id !== t.id);
+      await setData("todos", state.todos);
+      renderTodos(filter);
+    });
+    wrap.appendChild(row);
+  });
+}
+
+/* ============================================================
+   PROGRESSO
+   ============================================================ */
+function setupProgress(){
+  document.getElementById("certAddBtn").addEventListener("click", async ()=>{
+    const name = document.getElementById("certName").value.trim();
+    const hours = document.getElementById("certHours").value.trim();
+    const inst = document.getElementById("certInst").value.trim();
+    const link = document.getElementById("certLink").value.trim();
+    if(!name) return;
+    state.certificates.push({ id:"c"+Date.now(), name, hours, inst, link, status:"Andamento" });
+    await setData("certificates", state.certificates);
+    ["certName","certHours","certInst","certLink"].forEach(id=>document.getElementById(id).value = "");
+    renderCertificates();
+  });
+}
+
+function renderAttendance(){
+  const grid = document.getElementById("attendanceGrid");
+  grid.innerHTML = "";
+  state.modules.forEach(m=>{
+    const att = state.attendanceData[m.id] || { max:8, used:0 };
+    state.attendanceData[m.id] = att;
+    const pct = att.max > 0 ? Math.min(100, Math.round((att.used / att.max) * 100)) : 0;
+    const remaining = Math.max(0, att.max - att.used);
+    const color = pct >= 90 ? "var(--danger)" : pct >= 60 ? "var(--warn)" : "var(--success)";
+    const circumference = 2 * Math.PI * 38;
+    const offset = circumference * (1 - pct/100);
+
+    const card = document.createElement("div");
+    card.className = "card att-card";
+    card.innerHTML = `
+      <div class="donut-wrap">
+        <svg width="92" height="92" viewBox="0 0 92 92">
+          <circle cx="46" cy="46" r="38" fill="none" stroke="var(--surface-tint)" stroke-width="10"/>
+          <circle cx="46" cy="46" r="38" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+        </svg>
+        <div class="donut-label"><div class="donut-pct">${pct}%</div><div class="donut-sub">faltas</div></div>
+      </div>
+      <div class="att-info">
+        <div class="att-name">${escapeHtml(m.name)}</div>
+        <div class="att-stats">
+          <div class="att-stat"><b>${att.used}</b><span>usadas</span></div>
+          <div class="att-stat"><b>${remaining}</b><span>restantes</span></div>
+          <div class="att-stat"><b>${att.max}</b><span>permitidas</span></div>
+        </div>
+        <div class="att-controls">
+          <button class="stepper-btn" data-act="dec">−</button>
+          <button class="stepper-btn" data-act="inc">+</button>
+          <span style="font-size:11.5px;color:var(--text-muted);margin-left:4px;">faltas</span>
+          <span style="flex:1"></span>
+          <label style="font-size:11px;color:var(--text-muted);">máx.</label>
+          <input type="number" min="0" value="${att.max}" data-act="max">
+        </div>
+      </div>
+    `;
+    card.querySelector('[data-act="inc"]').addEventListener("click", async ()=>{
+      att.used = att.used + 1; await setData("attendanceData", state.attendanceData); renderAttendance();
+    });
+    card.querySelector('[data-act="dec"]').addEventListener("click", async ()=>{
+      att.used = Math.max(0, att.used - 1); await setData("attendanceData", state.attendanceData); renderAttendance();
+    });
+    card.querySelector('[data-act="max"]').addEventListener("change", async (e)=>{
+      att.max = Math.max(0, parseInt(e.target.value) || 0); await setData("attendanceData", state.attendanceData); renderAttendance();
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderCertificates(){
+  const body = document.getElementById("certTableBody");
+  body.innerHTML = "";
+  state.certificates.forEach(c=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(c.name)}</td>
+      <td>${c.hours || '—'}</td>
+      <td>${escapeHtml(c.inst || '—')}</td>
+      <td>${c.link ? `<a href="${escapeAttr(c.link)}" target="_blank" rel="noopener">ver</a>` : '—'}</td>
+      <td><span class="status-badge ${c.status === 'Done' ? 'Done' : 'Andamento'}" data-act="status" style="cursor:pointer;">${c.status === 'Done' ? 'Concluído' : 'Andamento'}</span></td>
+      <td><button class="icon-btn" data-act="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>
+    `;
+    tr.querySelector('[data-act="status"]').addEventListener("click", async ()=>{
+      c.status = c.status === "Done" ? "Andamento" : "Done";
+      await setData("certificates", state.certificates);
+      renderCertificates();
+    });
+    tr.querySelector('[data-act="del"]').addEventListener("click", async ()=>{
+      state.certificates = state.certificates.filter(x=>x.id !== c.id);
+      await setData("certificates", state.certificates);
+      renderCertificates();
+    });
+    body.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   MÓDULOS
+   ============================================================ */
+let currentModuleId = null;
+let currentNoteId = null;
+
+function setupModules(){
+  document.getElementById("crumbModules").addEventListener("click", showModulesGrid);
+  document.getElementById("crumbModules2").addEventListener("click", showModulesGrid);
+  document.getElementById("crumbFolder2").addEventListener("click", ()=> openFolder(currentModuleId));
+
+  document.getElementById("exportPdfBtn").addEventListener("click", exportNoteToPdf);
+  document.getElementById("bgColorBtn").addEventListener("click", async ()=>{
+    const colors = ["#FFFFFF","#F4F3FB","#EFEAFB","#FDF4E3","#E8F5EC","#FDEAF0","#2A2554"];
+    const note = await getData("note:"+currentNoteId, null);
+    if(!note) return;
+    const idx = colors.indexOf(note.bg || "#FFFFFF");
+    note.bg = colors[(idx+1) % colors.length];
+    document.getElementById("notePageWrap").style.background = note.bg;
+    document.getElementById("notePageWrap").style.color = note.bg === "#2A2554" ? "#EDEAFB" : "var(--text)";
+    await setData("note:"+currentNoteId, note);
+  });
+
+  buildEditorToolbar();
+  ["notePageTitle","notePageAuthor","notePageBody"].forEach(id=>{
+    document.getElementById(id).addEventListener("input", debounceSaveNote);
+  });
+}
+
+function renderNotebookGrid(){
+  const grid = document.getElementById("notebookGrid");
+  grid.innerHTML = "";
+  state.modules.forEach(m=>{
+    const count = (state.notesIndex[m.id] || []).length;
+    const card = document.createElement("div");
+    card.className = "notebook-card";
+    card.innerHTML = `
+      <div class="notebook-cover" style="${m.cover ? `background-image:url('${escapeAttr(m.cover)}')` : ''}"></div>
+      <div class="notebook-body">
+        <div class="notebook-name">${escapeHtml(m.name)}</div>
+        <div class="notebook-count">${count} ${count === 1 ? 'anotação' : 'anotações'}</div>
+      </div>
+    `;
+    card.addEventListener("click", ()=> openFolder(m.id));
+    grid.appendChild(card);
+  });
+}
+
+function showModulesGrid(){
+  document.getElementById("modulesGridView").hidden = false;
+  document.getElementById("modulesFolderView").hidden = true;
+  document.getElementById("modulesEditorView").hidden = true;
+  renderNotebookGrid();
+}
+
+function openFolder(moduleId){
+  currentModuleId = moduleId;
+  const mod = state.modules.find(m=>m.id === moduleId);
+  document.getElementById("modulesGridView").hidden = true;
+  document.getElementById("modulesFolderView").hidden = false;
+  document.getElementById("modulesEditorView").hidden = true;
+  document.getElementById("crumbCurrent").textContent = mod ? mod.name : "";
+  renderNotesGrid();
+}
+
+function renderNotesGrid(){
+  const grid = document.getElementById("notesGrid");
+  grid.innerHTML = "";
+  const notes = state.notesIndex[currentModuleId] || [];
+  notes.forEach(n=>{
+    const card = document.createElement("div");
+    card.className = "notebook-card note-card";
+    card.innerHTML = `
+      <div class="notebook-cover note-cover" style="${n.cover ? `background-image:url('${escapeAttr(n.cover)}')` : ''}">${n.cover ? '' : '📝'}</div>
+      <div class="notebook-body">
+        <div class="notebook-name note-title">${escapeHtml(n.title || 'Sem título')}</div>
+        <div class="note-date">${n.updatedAt ? new Date(n.updatedAt).toLocaleDateString('pt-BR') : ''}</div>
+      </div>
+      <button class="icon-btn note-del" title="Excluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    `;
+    card.addEventListener("click", (e)=>{
+      if(e.target.closest(".note-del")) return;
+      openNote(n.id);
+    });
+    card.querySelector(".note-del").addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      if(!confirm("Excluir esta anotação?")) return;
+      state.notesIndex[currentModuleId] = state.notesIndex[currentModuleId].filter(x=>x.id !== n.id);
+      await setData("notesIndex", state.notesIndex);
+      renderNotesGrid(); renderNotebookGrid();
+    });
+    grid.appendChild(card);
+  });
+
+  const addCard = document.createElement("div");
+  addCard.className = "card new-note-card";
+  addCard.innerHTML = `<span style="font-size:22px;">+</span><span>Nova anotação</span>`;
+  addCard.addEventListener("click", createNote);
+  grid.appendChild(addCard);
+}
+
+async function createNote(){
+  const id = "note" + Date.now();
+  const entry = { id, title:"", cover:"", updatedAt: Date.now() };
+  state.notesIndex[currentModuleId] = state.notesIndex[currentModuleId] || [];
+  state.notesIndex[currentModuleId].push(entry);
+  await setData("notesIndex", state.notesIndex);
+  await setData("note:"+id, { title:"", author:"", html:"", bg:"#FFFFFF" });
+  renderNotesGrid(); renderNotebookGrid();
+  openNote(id);
+}
+
+async function openNote(noteId){
+  currentNoteId = noteId;
+  document.getElementById("modulesGridView").hidden = true;
+  document.getElementById("modulesFolderView").hidden = true;
+  document.getElementById("modulesEditorView").hidden = false;
+
+  const mod = state.modules.find(m=>m.id === currentModuleId);
+  document.getElementById("crumbFolder2").textContent = mod ? mod.name : "";
+  const entry = (state.notesIndex[currentModuleId]||[]).find(n=>n.id === noteId);
+  document.getElementById("crumbNote2").textContent = entry && entry.title ? entry.title : "Sem título";
+
+  const note = await getData("note:"+noteId, { title:"", author:"", html:"", bg:"#FFFFFF" });
+  document.getElementById("notePageTitle").textContent = note.title || "";
+  document.getElementById("notePageAuthor").textContent = note.author || "";
+  document.getElementById("notePageBody").innerHTML = note.html || "";
+  const wrap = document.getElementById("notePageWrap");
+  wrap.style.background = note.bg || "#FFFFFF";
+  wrap.style.color = note.bg === "#2A2554" ? "#EDEAFB" : "var(--text)";
+  document.getElementById("saveIndicator").textContent = "Salvo";
+}
+
+let saveTimeout = null;
+function debounceSaveNote(){
+  document.getElementById("saveIndicator").textContent = "Salvando...";
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveCurrentNote, 500);
+}
+async function saveCurrentNote(){
+  if(!currentNoteId) return;
+  const title = document.getElementById("notePageTitle").textContent.trim();
+  const author = document.getElementById("notePageAuthor").textContent.trim();
+  const html = document.getElementById("notePageBody").innerHTML;
+  const existing = await getData("note:"+currentNoteId, {});
+  const note = { ...existing, title, author, html };
+  await setData("note:"+currentNoteId, note);
+
+  const list = state.notesIndex[currentModuleId] || [];
+  const entry = list.find(n=>n.id === currentNoteId);
+  if(entry){ entry.title = title; entry.updatedAt = Date.now(); await setData("notesIndex", state.notesIndex); }
+  document.getElementById("crumbNote2").textContent = title || "Sem título";
+  document.getElementById("saveIndicator").textContent = "Salvo";
+}
+
+function exportNoteToPdf(){
+  const el = document.getElementById("notePageWrap");
+  const opt = {
+    margin: 0.4,
+    filename: (document.getElementById("notePageTitle").textContent.trim() || "anotacao") + ".pdf",
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(el).save();
+}
+
+/* ---------- Editor toolbar ---------- */
+function buildEditorToolbar(){
+  const tb = document.getElementById("editorToolbar");
+  const bodyEl = () => document.getElementById("notePageBody");
+
+  function exec(cmd, val){
+    bodyEl().focus();
+    document.execCommand(cmd, false, val || null);
+    debounceSaveNote();
+  }
+  function addBtn(label, title, onClick){
+    const b = document.createElement("button");
+    b.className = "tb-btn"; b.title = title; b.innerHTML = label;
+    b.addEventListener("click", onClick);
+    tb.appendChild(b);
+    return b;
+  }
+  function sep(){ const s = document.createElement("div"); s.className="tb-sep"; tb.appendChild(s); }
+
+  addBtn("<b>B</b>", "Negrito", ()=>exec("bold"));
+  addBtn("<i>I</i>", "Itálico", ()=>exec("italic"));
+  addBtn("<u>U</u>", "Sublinhado", ()=>exec("underline"));
+  addBtn("<span style='text-decoration:line-through'>S</span>", "Tachado", ()=>exec("strikeThrough"));
+  sep();
+
+  const hSel = document.createElement("select");
+  hSel.className = "tb-select";
+  hSel.innerHTML = `<option value="p">Texto</option><option value="h2">Título 2</option><option value="h3">Título 3</option><option value="blockquote">Citação</option>`;
+  hSel.addEventListener("change", ()=>{ exec("formatBlock", hSel.value); hSel.value="p"; });
+  tb.appendChild(hSel);
+
+  const fontSel = document.createElement("select");
+  fontSel.className = "tb-select";
+  ["Plus Jakarta Sans","Fraunces","Inter","Poppins","Roboto Slab","Playfair Display","Nunito","Space Mono"].forEach(f=>{
+    const o = document.createElement("option"); o.value = f; o.textContent = f; fontSel.appendChild(o);
+  });
+  fontSel.addEventListener("change", ()=>{
+    loadFont(fontSel.value);
+    exec("fontName", fontSel.value);
+  });
+  tb.appendChild(fontSel);
+  sep();
+
+  addBtn("•", "Lista", ()=>exec("insertUnorderedList"));
+  addBtn("1.", "Lista numerada", ()=>exec("insertOrderedList"));
+  sep();
+
+  // highlight colors
+  const hlColors = ["#FDF1A6","#C9F2D8","#D8E4FC","#F6D3EA","#E3D8FB"];
+  const hlWrap = document.createElement("div"); hlWrap.className = "swatch-row";
+  hlWrap.innerHTML = `<span style="font-size:11px;color:var(--text-muted);margin-right:2px;">Marca-texto</span>`;
+  hlColors.forEach(c=>{
+    const sw = document.createElement("button"); sw.className="swatch"; sw.style.background = c; sw.title="Marca-texto";
+    sw.addEventListener("click", ()=>exec("hiliteColor", c));
+    hlWrap.appendChild(sw);
+  });
+  tb.appendChild(hlWrap);
+  sep();
+
+  // text colors
+  const txtColors = ["#211D3D","#7C63DD","#3F5FD1","#DD5C82","#3FAE7C","#D89A2F"];
+  const txtWrap = document.createElement("div"); txtWrap.className = "swatch-row";
+  txtWrap.innerHTML = `<span style="font-size:11px;color:var(--text-muted);margin-right:2px;">Texto</span>`;
+  txtColors.forEach(c=>{
+    const sw = document.createElement("button"); sw.className="swatch"; sw.style.background = c; sw.title="Cor do texto";
+    sw.addEventListener("click", ()=>exec("foreColor", c));
+    txtWrap.appendChild(sw);
+  });
+  tb.appendChild(txtWrap);
+  sep();
+
+  addBtn("🔗", "Inserir link", ()=>{
+    const url = prompt("URL do link:");
+    if(url) exec("createLink", url);
+  });
+  addBtn("🖼", "Inserir imagem (URL)", ()=>{
+    const url = prompt("URL da imagem:");
+    if(url) exec("insertImage", url);
+  });
+  addBtn("💬", "Callout", ()=>{
+    bodyEl().focus();
+    const sel = window.getSelection();
+    const text = sel && sel.toString() ? sel.toString() : "Escreva aqui...";
+    document.execCommand("insertHTML", false, `<div class="callout"><span class="callout-icon">💡</span><span>${escapeHtml(text)}</span></div><p><br></p>`);
+    debounceSaveNote();
+  });
+  addBtn("―", "Linha divisória", ()=>exec("insertHorizontalRule"));
+  addBtn("↺", "Limpar formatação", ()=>exec("removeFormat"));
+}
+
+const loadedFonts = new Set();
+function loadFont(name){
+  if(loadedFonts.has(name)) return;
+  loadedFonts.add(name);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name)}:wght@400;600;700&display=swap`;
+  document.head.appendChild(link);
+}
+
+/* ============================================================
+   utils
+   ============================================================ */
+function escapeHtml(str){
+  return String(str||"").replace(/[&<>"']/g, s=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[s]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+bootstrap();
+</script>
+</body>
+</html>
