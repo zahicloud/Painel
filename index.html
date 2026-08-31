@@ -671,117 +671,49 @@ const state = {};
 /* ============================================================
    FIREBASE — armazenamento na nuvem (independente do Claude)
    ============================================================ */
-const CONFIG_KEY = "vitalisFirebaseConfig";
+const firebaseConfig = {
+  apiKey: "AIzaSyBPuDgjQSrWesF9Fp2NutlMTWf215miJEI",
+  authDomain: "zahifac-a4714.firebaseapp.com",
+  databaseURL: "https://zahifac-a4714-default-rtdb.firebaseio.com",
+  projectId: "zahifac-a4714",
+  storageBucket: "zahifac-a4714.firebasestorage.app",
+  messagingSenderId: "841474314478",
+  appId: "1:841474314478:web:f69d9b8115929ec4b563ff",
+  measurementId: "G-9FVSLKCVLG"
+};
+
 let fbApp = null, db = null, auth = null, currentUser = null;
 
-function getStoredConfig(){
-  try{ const raw = localStorage.getItem(CONFIG_KEY); return raw ? JSON.parse(raw) : null; }
-  catch(e){ return null; }
-}
-function storeConfig(cfg){
-  try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }catch(e){ console.warn("não foi possível salvar a config localmente", e); }
-}
-
-function initFirebase(cfg){
-  fbApp = firebase.initializeApp(cfg);
-  auth = firebase.auth();
-  db = firebase.firestore();
-  auth.onAuthStateChanged(user=>{
-    if(user){
-      currentUser = user;
-      document.getElementById("setupOverlay").hidden = true;
-      document.getElementById("authOverlay").hidden = true;
-      document.getElementById("app").hidden = false;
-      const label = document.getElementById("accountEmail");
-      if(label) label.textContent = user.email || "conta";
-      init();
-    } else {
-      currentUser = null;
-      document.getElementById("app").hidden = true;
-      document.getElementById("setupOverlay").hidden = true;
-      document.getElementById("authOverlay").hidden = false;
+function initFirebase(){
+  try{
+    if(!fbApp){
+      fbApp = firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db = firebase.firestore();
     }
-  });
-}
 
-async function getData(key, fallback){
-  try{
-    if(!db || !currentUser) return fallback;
-    const doc = await db.collection("users").doc(currentUser.uid).collection("data").doc(key).get();
-    if(doc.exists && doc.data().value !== undefined){ return JSON.parse(doc.data().value); }
-    return fallback;
-  }catch(e){ console.error("getData (Firestore) error", e); return fallback; }
-}
-async function setData(key, value){
-  try{
-    if(!db || !currentUser) return;
-    await db.collection("users").doc(currentUser.uid).collection("data").doc(key)
-      .set({ value: JSON.stringify(value), updatedAt: Date.now() });
-    const s = document.getElementById("cloudStatus");
-    if(s){ s.textContent = "Sincronizado"; }
+    auth.onAuthStateChanged(user => {
+      if(user){
+        currentUser = user;
+        document.getElementById("setupOverlay").hidden = true;
+        document.getElementById("authOverlay").hidden = true;
+        document.getElementById("app").hidden = false;
+        const label = document.getElementById("accountEmail");
+        if(label) label.textContent = user.email || "conta";
+        init();
+      } else {
+        currentUser = null;
+        document.getElementById("app").hidden = true;
+        document.getElementById("setupOverlay").hidden = true;
+        document.getElementById("authOverlay").hidden = false;
+      }
+    });
   }catch(e){
-    console.error("setData (Firestore) error", e);
-    const s = document.getElementById("cloudStatus");
-    if(s){ s.textContent = "Erro ao salvar"; }
+    console.error("Erro ao inicializar Firebase:", e);
+    const errorEl = document.getElementById("authError");
+    if(errorEl) errorEl.textContent = "Não foi possível conectar ao Firebase. Verifique a configuração.";
   }
 }
-
-function bootstrap(){
-  const cfg = getStoredConfig();
-  if(cfg){
-    document.getElementById("setupOverlay").hidden = true;
-    initFirebase(cfg);
-  } else {
-    document.getElementById("app").hidden = true;
-    document.getElementById("authOverlay").hidden = true;
-    document.getElementById("setupOverlay").hidden = false;
-  }
-}
-
-function parsePastedConfig(text){
-  try{
-    const match = text.match(/\{[\s\S]*\}/);
-    const body = match ? match[0] : text;
-    // eslint-disable-next-line no-new-func
-    const obj = new Function("return (" + body + ")")();
-    return obj;
-  }catch(e){ return null; }
-}
-
-document.getElementById("setupPasteBtn")?.addEventListener("click", ()=>{
-  document.getElementById("setupPasteWrap").hidden = false;
-  document.getElementById("setupManualWrap").hidden = true;
-});
-document.getElementById("setupManualBtn")?.addEventListener("click", ()=>{
-  document.getElementById("setupManualWrap").hidden = false;
-  document.getElementById("setupPasteWrap").hidden = true;
-});
-
-document.getElementById("setupSaveBtn")?.addEventListener("click", ()=>{
-  const errorEl = document.getElementById("setupError");
-  errorEl.textContent = "";
-  let cfg = null;
-  if(!document.getElementById("setupPasteWrap").hidden){
-    const raw = document.getElementById("setupPasteInput").value.trim();
-    cfg = parsePastedConfig(raw);
-  } else {
-    cfg = {
-      apiKey: document.getElementById("cfgApiKey").value.trim(),
-      authDomain: document.getElementById("cfgAuthDomain").value.trim(),
-      projectId: document.getElementById("cfgProjectId").value.trim(),
-      storageBucket: document.getElementById("cfgStorageBucket").value.trim(),
-      messagingSenderId: document.getElementById("cfgSenderId").value.trim(),
-      appId: document.getElementById("cfgAppId").value.trim()
-    };
-  }
-  if(!cfg || !cfg.apiKey || !cfg.projectId || !cfg.appId){
-    errorEl.textContent = "Não consegui reconhecer a configuração. Confira os dados e tente novamente.";
-    return;
-  }
-  storeConfig(cfg);
-  document.getElementById("setupOverlay").hidden = true;
-  initFirebase(cfg);
-});
 
 function setupAuthOverlay(){
   const errorEl = document.getElementById("authError");
