@@ -715,6 +715,13 @@ function initFirebase(){
   }
 }
 
+function bootstrap(){
+  document.getElementById("setupOverlay").hidden = true;
+  document.getElementById("app").hidden = true;
+  document.getElementById("authOverlay").hidden = false;
+  initFirebase();
+}
+
 function setupAuthOverlay(){
   const errorEl = document.getElementById("authError");
   document.getElementById("authLoginBtn").addEventListener("click", async ()=>{
@@ -758,10 +765,7 @@ document.getElementById("logoutLink")?.addEventListener("click", (e)=>{
 });
 document.getElementById("changeFirebaseLink")?.addEventListener("click", (e)=>{
   e.preventDefault();
-  if(confirm("Isso desconecta o app deste projeto Firebase (seus dados continuam salvos na nuvem). Deseja configurar outro projeto?")){
-    localStorage.removeItem(CONFIG_KEY);
-    location.reload();
-  }
+  alert("A configuração do Firebase está fixa neste aplicativo.");
 });
 
 /* ============================================================
