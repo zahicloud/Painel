@@ -87,8 +87,7 @@ a{color:var(--blue-deep);}
 .sidebar-account{ padding:10px 10px 2px; border-top:1px solid rgba(255,255,255,.08); margin-top:8px; }
 .sync-row{ display:flex; align-items:center; gap:6px; font-size:11px; color:#B9B2E4; margin-bottom:4px; }
 .sync-dot{ width:6px; height:6px; border-radius:50%; background: var(--success); flex-shrink:0; }
-.account-email{ font-size:11px; color:#8B84BC; margin-bottom:8px; word-break:break-all; }
-.account-links{ display:flex; justify-content:space-between; }
+.account-links{ display:flex; justify-content:flex-start; }
 .account-links a{ font-size:11px; color:#9E97C9; text-decoration:none; }
 .account-links a:hover{ color:#fff; text-decoration:underline; }
 
@@ -325,6 +324,13 @@ label.field-label{ font-size:11.5px; font-weight:600; color:var(--text-muted); d
 .note-page-title:empty:before{ content: attr(data-ph); color: var(--text-soft); }
 .note-page-author{ font-size:13px; color: var(--text-muted); outline:none; margin-bottom:26px; }
 .note-page-author:empty:before{ content: attr(data-ph); color: var(--text-soft); }
+.page-tabs{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-bottom:18px; margin-bottom:18px; border-bottom:1px solid var(--border); }
+.page-tab{ display:flex; align-items:center; gap:6px; padding:6px 8px 6px 12px; border-radius:999px; background:var(--surface-tint); font-size:12.5px; font-weight:600; color:var(--text-muted); cursor:pointer; }
+.page-tab.active{ background: var(--lilac-deep); color:#fff; }
+.page-tab .page-tab-del{ width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; opacity:.7; }
+.page-tab .page-tab-del:hover{ opacity:1; background:rgba(0,0,0,.15); }
+.page-tab-add{ padding:6px 12px; border-radius:999px; border:1.5px dashed var(--border); font-size:12.5px; font-weight:600; color:var(--text-muted); }
+.page-tab-add:hover{ border-color:var(--lilac); color:var(--lilac-deep); }
 .note-page-body{ outline:none; font-size:15.5px; line-height:1.75; }
 .note-page-body:empty:before{ content:'Comece a escrever...'; color:var(--text-soft); }
 .note-page-body h2{ font-family:var(--font-d); font-size:23px; margin:22px 0 8px; font-weight:600; }
@@ -361,10 +367,9 @@ label.field-label{ font-size:11.5px; font-weight:600; color:var(--text-muted); d
   <div class="overlay-card">
     <div class="overlay-title">Conectar ao Firebase</div>
     <p class="overlay-text">
-      Pra seus dados ficarem salvos na nuvem, na sua própria conta — sem depender do Claude —
-      este painel usa o <b>Firebase</b> (gratuito). Crie um projeto em
-      <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a>,
-      ative <b>Authentication → E-mail/senha</b> e <b>Firestore Database</b>, depois cole aqui a configuração
+      Pra seus dados ficarem salvos, sem depender do Claude, este painel usa o <b>Firebase</b> (gratuito), sem exigir login.
+      Crie um projeto em <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a>,
+      ative <b>Authentication → método "Anônimo"</b> e o <b>Firestore Database</b>, depois cole aqui a configuração
       do seu app da Web (Configurações do projeto → Seus apps → ícone <b>&lt;/&gt;</b>).
     </p>
     <div class="overlay-tabs">
@@ -385,24 +390,6 @@ label.field-label{ font-size:11.5px; font-weight:600; color:var(--text-muted); d
     </div>
     <div class="overlay-error" id="setupError"></div>
     <button class="pill-btn primary" id="setupSaveBtn" style="margin-top:14px; width:100%;">Salvar e conectar</button>
-  </div>
-</div>
-
-<!-- ===================== LOGIN ===================== -->
-<div class="overlay" id="authOverlay" hidden>
-  <div class="overlay-card">
-    <div class="overlay-title">Entrar</div>
-    <p class="overlay-text">Crie sua conta ou entre — seus dados ficam vinculados só a ela, em qualquer dispositivo.</p>
-    <label class="field-label">E-mail</label>
-    <input type="text" id="authEmail" placeholder="seu@email.com">
-    <label class="field-label" style="margin-top:10px;">Senha</label>
-    <input type="password" id="authPassword" placeholder="mínimo 6 caracteres">
-    <div class="overlay-error" id="authError"></div>
-    <div style="display:flex; gap:8px; margin-top:14px;">
-      <button class="pill-btn primary" id="authLoginBtn" style="flex:1;">Entrar</button>
-      <button class="pill-btn" id="authSignupBtn" style="flex:1;">Criar conta</button>
-    </div>
-    <button class="pill-btn ghost" id="authResetBtn" style="width:100%; margin-top:8px;">Esqueci minha senha</button>
   </div>
 </div>
 
@@ -427,9 +414,7 @@ label.field-label{ font-size:11.5px; font-weight:600; color:var(--text-muted); d
 
     <div class="sidebar-account">
       <div class="sync-row"><span class="sync-dot"></span><span id="cloudStatus">Sincronizado</span></div>
-      <div class="account-email" id="accountEmail"></div>
       <div class="account-links">
-        <a href="#" id="logoutLink">Sair</a>
         <a href="#" id="changeFirebaseLink">Trocar projeto</a>
       </div>
     </div>
@@ -583,6 +568,7 @@ label.field-label{ font-size:11.5px; font-weight:600; color:var(--text-muted); d
           <div class="note-page" id="notePageWrap">
             <div class="note-page-title" id="notePageTitle" contenteditable="true" data-ph="Título da anotação"></div>
             <div class="note-page-author" id="notePageAuthor" contenteditable="true" data-ph="Autor"></div>
+            <div class="page-tabs" id="pageTabs"></div>
             <div class="note-page-body" id="notePageBody" contenteditable="true"></div>
           </div>
         </div>
@@ -671,101 +657,126 @@ const state = {};
 /* ============================================================
    FIREBASE — armazenamento na nuvem (independente do Claude)
    ============================================================ */
-const firebaseConfig = {
-  apiKey: "AIzaSyBPuDgjQSrWesF9Fp2NutlMTWf215miJEI",
-  authDomain: "zahifac-a4714.firebaseapp.com",
-  databaseURL: "https://zahifac-a4714-default-rtdb.firebaseio.com",
-  projectId: "zahifac-a4714",
-  storageBucket: "zahifac-a4714.firebasestorage.app",
-  messagingSenderId: "841474314478",
-  appId: "1:841474314478:web:f69d9b8115929ec4b563ff",
-  measurementId: "G-9FVSLKCVLG"
-};
-
+const CONFIG_KEY = "vitalisFirebaseConfig";
 let fbApp = null, db = null, auth = null, currentUser = null;
 
-function initFirebase(){
-  try{
-    if(!fbApp){
-      fbApp = firebase.initializeApp(firebaseConfig);
-      auth = firebase.auth();
-      db = firebase.firestore();
-    }
+function getStoredConfig(){
+  try{ const raw = localStorage.getItem(CONFIG_KEY); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+function storeConfig(cfg){
+  try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }catch(e){ console.warn("não foi possível salvar a config localmente", e); }
+}
 
-    auth.onAuthStateChanged(user => {
-      if(user){
-        currentUser = user;
-        document.getElementById("setupOverlay").hidden = true;
-        document.getElementById("authOverlay").hidden = true;
-        document.getElementById("app").hidden = false;
-        const label = document.getElementById("accountEmail");
-        if(label) label.textContent = user.email || "conta";
-        init();
-      } else {
-        currentUser = null;
-        document.getElementById("app").hidden = true;
-        document.getElementById("setupOverlay").hidden = true;
-        document.getElementById("authOverlay").hidden = false;
-      }
-    });
+function initFirebase(cfg){
+  fbApp = firebase.initializeApp(cfg);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      currentUser = user;
+      document.getElementById("setupOverlay").hidden = true;
+      document.getElementById("app").hidden = false;
+      init();
+    } else {
+      currentUser = null;
+      document.getElementById("app").hidden = true;
+      // sem tela de login: entra automaticamente de forma anônima,
+      // os dados ficam guardados nesse navegador/dispositivo
+      auth.signInAnonymously().catch(e=>{
+        console.error("falha no login anônimo", e);
+        const err = document.getElementById("setupError");
+        if(err){ err.textContent = "Não consegui conectar automaticamente. Verifique se o método de login \"Anônimo\" está ativado no Firebase Authentication."; }
+        document.getElementById("setupOverlay").hidden = false;
+      });
+    }
+  });
+}
+
+async function getData(key, fallback){
+  try{
+    if(!db || !currentUser) return fallback;
+    const doc = await db.collection("users").doc(currentUser.uid).collection("data").doc(key).get();
+    if(doc.exists && doc.data().value !== undefined){ return JSON.parse(doc.data().value); }
+    return fallback;
+  }catch(e){ console.error("getData (Firestore) error", e); return fallback; }
+}
+async function setData(key, value){
+  try{
+    if(!db || !currentUser) return;
+    await db.collection("users").doc(currentUser.uid).collection("data").doc(key)
+      .set({ value: JSON.stringify(value), updatedAt: Date.now() });
+    const s = document.getElementById("cloudStatus");
+    if(s){ s.textContent = "Sincronizado"; }
   }catch(e){
-    console.error("Erro ao inicializar Firebase:", e);
-    const errorEl = document.getElementById("authError");
-    if(errorEl) errorEl.textContent = "Não foi possível conectar ao Firebase. Verifique a configuração.";
+    console.error("setData (Firestore) error", e);
+    const s = document.getElementById("cloudStatus");
+    if(s){ s.textContent = "Erro ao salvar"; }
   }
 }
 
 function bootstrap(){
-  document.getElementById("setupOverlay").hidden = true;
-  document.getElementById("app").hidden = true;
-  document.getElementById("authOverlay").hidden = false;
-  initFirebase();
+  const cfg = getStoredConfig();
+  if(cfg){
+    document.getElementById("setupOverlay").hidden = true;
+    initFirebase(cfg);
+  } else {
+    document.getElementById("app").hidden = true;
+    document.getElementById("setupOverlay").hidden = false;
+  }
 }
 
-function setupAuthOverlay(){
-  const errorEl = document.getElementById("authError");
-  document.getElementById("authLoginBtn").addEventListener("click", async ()=>{
-    errorEl.textContent = "";
-    const email = document.getElementById("authEmail").value.trim();
-    const pass = document.getElementById("authPassword").value;
-    try{ await auth.signInWithEmailAndPassword(email, pass); }
-    catch(e){ errorEl.textContent = traduzErroFirebase(e); }
-  });
-  document.getElementById("authSignupBtn").addEventListener("click", async ()=>{
-    errorEl.textContent = "";
-    const email = document.getElementById("authEmail").value.trim();
-    const pass = document.getElementById("authPassword").value;
-    try{ await auth.createUserWithEmailAndPassword(email, pass); }
-    catch(e){ errorEl.textContent = traduzErroFirebase(e); }
-  });
-  document.getElementById("authResetBtn").addEventListener("click", async ()=>{
-    errorEl.textContent = "";
-    const email = document.getElementById("authEmail").value.trim();
-    if(!email){ errorEl.textContent = "Digite seu e-mail acima primeiro."; return; }
-    try{ await auth.sendPasswordResetEmail(email); errorEl.style.color = "var(--success)"; errorEl.textContent = "Enviamos um link de redefinição para o seu e-mail."; }
-    catch(e){ errorEl.textContent = traduzErroFirebase(e); }
-  });
+function parsePastedConfig(text){
+  try{
+    const match = text.match(/\{[\s\S]*\}/);
+    const body = match ? match[0] : text;
+    // eslint-disable-next-line no-new-func
+    const obj = new Function("return (" + body + ")")();
+    return obj;
+  }catch(e){ return null; }
 }
-function traduzErroFirebase(e){
-  const map = {
-    "auth/invalid-email": "E-mail inválido.",
-    "auth/user-not-found": "Não existe conta com esse e-mail.",
-    "auth/wrong-password": "Senha incorreta.",
-    "auth/email-already-in-use": "Já existe uma conta com esse e-mail — tente entrar.",
-    "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
-    "auth/invalid-credential": "E-mail ou senha incorretos."
-  };
-  return map[e.code] || ("Algo deu errado: " + e.message);
-}
-setupAuthOverlay();
 
-document.getElementById("logoutLink")?.addEventListener("click", (e)=>{
-  e.preventDefault();
-  if(auth) auth.signOut();
+document.getElementById("setupPasteBtn")?.addEventListener("click", ()=>{
+  document.getElementById("setupPasteWrap").hidden = false;
+  document.getElementById("setupManualWrap").hidden = true;
 });
+document.getElementById("setupManualBtn")?.addEventListener("click", ()=>{
+  document.getElementById("setupManualWrap").hidden = false;
+  document.getElementById("setupPasteWrap").hidden = true;
+});
+
+document.getElementById("setupSaveBtn")?.addEventListener("click", ()=>{
+  const errorEl = document.getElementById("setupError");
+  errorEl.textContent = "";
+  let cfg = null;
+  if(!document.getElementById("setupPasteWrap").hidden){
+    const raw = document.getElementById("setupPasteInput").value.trim();
+    cfg = parsePastedConfig(raw);
+  } else {
+    cfg = {
+      apiKey: document.getElementById("cfgApiKey").value.trim(),
+      authDomain: document.getElementById("cfgAuthDomain").value.trim(),
+      projectId: document.getElementById("cfgProjectId").value.trim(),
+      storageBucket: document.getElementById("cfgStorageBucket").value.trim(),
+      messagingSenderId: document.getElementById("cfgSenderId").value.trim(),
+      appId: document.getElementById("cfgAppId").value.trim()
+    };
+  }
+  if(!cfg || !cfg.apiKey || !cfg.projectId || !cfg.appId){
+    errorEl.textContent = "Não consegui reconhecer a configuração. Confira os dados e tente novamente.";
+    return;
+  }
+  storeConfig(cfg);
+  document.getElementById("setupOverlay").hidden = true;
+  initFirebase(cfg);
+});
+
 document.getElementById("changeFirebaseLink")?.addEventListener("click", (e)=>{
   e.preventDefault();
-  alert("A configuração do Firebase está fixa neste aplicativo.");
+  if(confirm("Isso desconecta o app deste projeto Firebase (seus dados continuam salvos na nuvem). Deseja configurar outro projeto?")){
+    localStorage.removeItem(CONFIG_KEY);
+    location.reload();
+  }
 });
 
 /* ============================================================
@@ -1226,6 +1237,9 @@ function renderCertificates(){
    ============================================================ */
 let currentModuleId = null;
 let currentNoteId = null;
+let currentPageId = null;
+let currentNotePages = [];   // [{id, html}]
+let currentNoteMeta = { title:"", author:"", bg:"#FFFFFF" };
 
 function setupModules(){
   document.getElementById("crumbModules").addEventListener("click", showModulesGrid);
@@ -1235,19 +1249,27 @@ function setupModules(){
   document.getElementById("exportPdfBtn").addEventListener("click", exportNoteToPdf);
   document.getElementById("bgColorBtn").addEventListener("click", async ()=>{
     const colors = ["#FFFFFF","#F4F3FB","#EFEAFB","#FDF4E3","#E8F5EC","#FDEAF0","#2A2554"];
-    const note = await getData("note:"+currentNoteId, null);
-    if(!note) return;
-    const idx = colors.indexOf(note.bg || "#FFFFFF");
-    note.bg = colors[(idx+1) % colors.length];
-    document.getElementById("notePageWrap").style.background = note.bg;
-    document.getElementById("notePageWrap").style.color = note.bg === "#2A2554" ? "#EDEAFB" : "var(--text)";
-    await setData("note:"+currentNoteId, note);
+    const idx = colors.indexOf(currentNoteMeta.bg || "#FFFFFF");
+    currentNoteMeta.bg = colors[(idx+1) % colors.length];
+    applyPageColors();
+    debounceSaveNote();
   });
 
   buildEditorToolbar();
-  ["notePageTitle","notePageAuthor","notePageBody"].forEach(id=>{
+  ["notePageTitle","notePageAuthor"].forEach(id=>{
     document.getElementById(id).addEventListener("input", debounceSaveNote);
   });
+  document.getElementById("notePageBody").addEventListener("input", ()=>{
+    const p = currentNotePages.find(pg=>pg.id === currentPageId);
+    if(p) p.html = document.getElementById("notePageBody").innerHTML;
+    debounceSaveNote();
+  });
+}
+
+function applyPageColors(){
+  const wrap = document.getElementById("notePageWrap");
+  wrap.style.background = currentNoteMeta.bg || "#FFFFFF";
+  wrap.style.color = currentNoteMeta.bg === "#2A2554" ? "#EDEAFB" : "var(--text)";
 }
 
 function renderNotebookGrid(){
@@ -1328,7 +1350,7 @@ async function createNote(){
   state.notesIndex[currentModuleId] = state.notesIndex[currentModuleId] || [];
   state.notesIndex[currentModuleId].push(entry);
   await setData("notesIndex", state.notesIndex);
-  await setData("note:"+id, { title:"", author:"", html:"", bg:"#FFFFFF" });
+  await setData("note:"+id, { title:"", author:"", bg:"#FFFFFF", pages:[{ id:"pg1", html:"" }] });
   renderNotesGrid(); renderNotebookGrid();
   openNote(id);
 }
@@ -1344,14 +1366,62 @@ async function openNote(noteId){
   const entry = (state.notesIndex[currentModuleId]||[]).find(n=>n.id === noteId);
   document.getElementById("crumbNote2").textContent = entry && entry.title ? entry.title : "Sem título";
 
-  const note = await getData("note:"+noteId, { title:"", author:"", html:"", bg:"#FFFFFF" });
-  document.getElementById("notePageTitle").textContent = note.title || "";
-  document.getElementById("notePageAuthor").textContent = note.author || "";
-  document.getElementById("notePageBody").innerHTML = note.html || "";
-  const wrap = document.getElementById("notePageWrap");
-  wrap.style.background = note.bg || "#FFFFFF";
-  wrap.style.color = note.bg === "#2A2554" ? "#EDEAFB" : "var(--text)";
+  const note = await getData("note:"+noteId, { title:"", author:"", bg:"#FFFFFF", pages:[{ id:"pg1", html:"" }] });
+  // backward-compat: notas antigas de página única (title/author/html)
+  let pages = note.pages;
+  if(!pages || !pages.length){ pages = [{ id:"pg1", html: note.html || "" }]; }
+
+  currentNoteMeta = { title: note.title || "", author: note.author || "", bg: note.bg || "#FFFFFF" };
+  currentNotePages = pages;
+
+  document.getElementById("notePageTitle").textContent = currentNoteMeta.title;
+  document.getElementById("notePageAuthor").textContent = currentNoteMeta.author;
+  applyPageColors();
+  switchPage(pages[0].id);
   document.getElementById("saveIndicator").textContent = "Salvo";
+}
+
+function renderPageTabs(){
+  const wrap = document.getElementById("pageTabs");
+  wrap.innerHTML = "";
+  currentNotePages.forEach((p, i)=>{
+    const tab = document.createElement("div");
+    tab.className = "page-tab" + (p.id === currentPageId ? " active" : "");
+    tab.innerHTML = `<span>${escapeHtml(p.title || ("Página " + (i+1)))}</span>` + (currentNotePages.length > 1 ? `<span class="page-tab-del" title="Excluir página"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>` : "");
+    tab.addEventListener("click", (e)=>{
+      if(e.target.closest(".page-tab-del")) return;
+      switchPage(p.id);
+    });
+    const delBtn = tab.querySelector(".page-tab-del");
+    if(delBtn){
+      delBtn.addEventListener("click", async (e)=>{
+        e.stopPropagation();
+        if(!confirm("Excluir esta página da anotação?")) return;
+        currentNotePages = currentNotePages.filter(x=>x.id !== p.id);
+        if(currentPageId === p.id){ switchPage(currentNotePages[0].id); }
+        await saveCurrentNote();
+        renderPageTabs();
+      });
+    }
+    wrap.appendChild(tab);
+  });
+  const addBtn = document.createElement("div");
+  addBtn.className = "page-tab-add";
+  addBtn.textContent = "+ Página";
+  addBtn.addEventListener("click", async ()=>{
+    const id = "pg" + Date.now();
+    currentNotePages.push({ id, html:"" });
+    await saveCurrentNote();
+    switchPage(id);
+  });
+  wrap.appendChild(addBtn);
+}
+
+function switchPage(pageId){
+  currentPageId = pageId;
+  const p = currentNotePages.find(x=>x.id === pageId);
+  document.getElementById("notePageBody").innerHTML = p ? (p.html || "") : "";
+  renderPageTabs();
 }
 
 let saveTimeout = null;
@@ -1362,30 +1432,51 @@ function debounceSaveNote(){
 }
 async function saveCurrentNote(){
   if(!currentNoteId) return;
-  const title = document.getElementById("notePageTitle").textContent.trim();
-  const author = document.getElementById("notePageAuthor").textContent.trim();
-  const html = document.getElementById("notePageBody").innerHTML;
-  const existing = await getData("note:"+currentNoteId, {});
-  const note = { ...existing, title, author, html };
+  currentNoteMeta.title = document.getElementById("notePageTitle").textContent.trim();
+  currentNoteMeta.author = document.getElementById("notePageAuthor").textContent.trim();
+  const activePage = currentNotePages.find(p=>p.id === currentPageId);
+  if(activePage){ activePage.html = document.getElementById("notePageBody").innerHTML; }
+
+  const note = { title: currentNoteMeta.title, author: currentNoteMeta.author, bg: currentNoteMeta.bg, pages: currentNotePages };
   await setData("note:"+currentNoteId, note);
 
   const list = state.notesIndex[currentModuleId] || [];
   const entry = list.find(n=>n.id === currentNoteId);
-  if(entry){ entry.title = title; entry.updatedAt = Date.now(); await setData("notesIndex", state.notesIndex); }
-  document.getElementById("crumbNote2").textContent = title || "Sem título";
+  if(entry){ entry.title = currentNoteMeta.title; entry.updatedAt = Date.now(); await setData("notesIndex", state.notesIndex); }
+  document.getElementById("crumbNote2").textContent = currentNoteMeta.title || "Sem título";
   document.getElementById("saveIndicator").textContent = "Salvo";
 }
 
 function exportNoteToPdf(){
-  const el = document.getElementById("notePageWrap");
+  // salva a página atual antes de montar o PDF
+  const activePage = currentNotePages.find(p=>p.id === currentPageId);
+  if(activePage){ activePage.html = document.getElementById("notePageBody").innerHTML; }
+
+  const container = document.createElement("div");
+  container.style.background = currentNoteMeta.bg || "#FFFFFF";
+  container.style.color = currentNoteMeta.bg === "#2A2554" ? "#EDEAFB" : "#211D3D";
+  container.style.padding = "10px 6px";
+  container.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
+
+  const titleHtml = `<div style="font-family:'Fraunces',serif; font-size:30px; font-weight:600; margin-bottom:4px;">${escapeHtml(currentNoteMeta.title || "Sem título")}</div>`;
+  const authorHtml = currentNoteMeta.author ? `<div style="font-size:13px; color:#6E698C; margin-bottom:22px;">${escapeHtml(currentNoteMeta.author)}</div>` : `<div style="margin-bottom:22px;"></div>`;
+
+  currentNotePages.forEach((p, i)=>{
+    const pageDiv = document.createElement("div");
+    if(i > 0){ pageDiv.style.pageBreakBefore = "always"; pageDiv.style.paddingTop = "20px"; }
+    pageDiv.innerHTML = (i === 0 ? titleHtml + authorHtml : `<div style="font-size:11px; color:#9791B3; margin-bottom:10px;">Página ${i+1}</div>`) + (p.html || "");
+    container.appendChild(pageDiv);
+  });
+
   const opt = {
     margin: 0.4,
-    filename: (document.getElementById("notePageTitle").textContent.trim() || "anotacao") + ".pdf",
+    filename: (currentNoteMeta.title || "anotacao") + ".pdf",
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css'] }
   };
-  html2pdf().set(opt).from(el).save();
+  html2pdf().set(opt).from(container).save();
 }
 
 /* ---------- Editor toolbar ---------- */
